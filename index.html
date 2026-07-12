@@ -229,7 +229,7 @@
     width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;z-index:2;
   }
   .modal-hero{display:flex;gap:18px;padding:22px;border-bottom:1px solid var(--line);}
-  .modal-hero img{width:120px;border-radius:8px;flex:0 0 120px;}
+  .modal-hero img.modal-poster-img{width:120px;border-radius:8px;flex:0 0 120px;}
   .modal-hero .noimg{width:120px;height:180px;flex:0 0 120px;background:#0f1216;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-family:'Fraunces';font-style:italic;font-size:12px;text-align:center;padding:6px;}
   .modal-title{font-family:'Fraunces';font-weight:700;font-size:22px;margin:0 0 4px;}
   .modal-greek-title{font-size:12px;color:var(--text-dim);margin-bottom:8px;font-style:italic;}
@@ -341,7 +341,7 @@
     .stremio-btn{height:26px;padding:0 8px;margin-left:4px;font-size:10px;}
     .stremio-btn-text{display:none;}
     .modal-hero{flex-direction:column;}
-    .modal-hero img, .modal-hero .noimg{width:100%;flex:none;height:auto;aspect-ratio:2/3;}
+    .modal-hero img.modal-poster-img, .modal-hero .noimg{width:100%;flex:none;height:auto;aspect-ratio:2/3;}
   }
 </style>
 </head>
@@ -753,7 +753,7 @@ async function openModal(tmdbId, englishTitle){
 
     els.modalContent.innerHTML = `
       <div class="modal-hero">
-        ${poster ? `<img src="${poster}" alt="${title}">` : `<div class="noimg">Χωρίς αφίσα</div>`}
+        ${poster ? `<img class="modal-poster-img" src="${poster}" alt="${title}">` : `<div class="noimg">Χωρίς αφίσα</div>`}
         <div>
           <div class="modal-title">${title}</div>
           ${showGreekTitle ? `<div class="modal-greek-title">Ελληνικός τίτλος: ${greekTitle}</div>` : ''}
