@@ -239,6 +239,10 @@
   .modal-providers{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;}
   .providers-label{font-size:10.5px;color:var(--text-dim);margin-right:2px;}
   .provider-logo{width:38px;height:38px;border-radius:8px;background:#fff;padding:2px;object-fit:contain;}
+  .provider-chip{
+    background:rgba(108,179,90,0.15);border:1px solid rgba(108,179,90,0.4);color:#6cb35a;
+    padding:6px 12px;border-radius:16px;font-size:11.5px;font-weight:600;
+  }
   .modal-body{padding:20px 22px;}
   .modal-overview{font-size:14px;line-height:1.6;color:var(--text);}
   .modal-loading{padding:40px;text-align:center;color:var(--text-dim);}
@@ -310,12 +314,12 @@
     .filters-toggle-btn{display:inline-flex;flex:1 1 30%;justify-content:center;min-width:0;}
 
     .controls > .field:nth-child(2),
-    .controls > .field:nth-child(5){
+    .controls > .field:nth-child(3){
       flex:1 1 30%;
       min-width:0;
     }
     .controls > .field:nth-child(2) select,
-    .controls > .field:nth-child(5) select{
+    .controls > .field:nth-child(3) select{
       min-width:0;width:100%;padding:8px 6px;font-size:12px;
     }
 
@@ -326,7 +330,8 @@
     }
     #advancedFilters .field{flex:1 1 45%;min-width:0;}
     #advancedFilters .field input,
-    #advancedFilters .field select{min-width:0;width:100%;padding:8px 6px;font-size:12px;}
+    #advancedFilters .field select,
+    #advancedFilters .field .genre-filter-btn{min-width:0;width:100%;padding:8px 6px;font-size:12px;}
 
     .controls .field label{font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .controls .range-row{gap:4px;}
@@ -338,8 +343,7 @@
     .list-mode .poster-wrap{width:38px;flex:0 0 38px;}
     .list-mode .rating-box{margin-left:4px;}
     .list-mode .rating-line{font-size:10.5px;}
-    .stremio-btn{height:26px;padding:0 8px;margin-left:4px;font-size:10px;}
-    .stremio-btn-text{display:none;}
+    .stremio-btn{height:26px;padding:0 8px;margin-left:4px;font-size:9.5px;gap:3px;}
     .modal-hero{flex-direction:column;}
     .modal-hero img.modal-poster-img, .modal-hero .noimg{width:100%;flex:none;height:auto;aspect-ratio:2/3;}
   }
@@ -366,6 +370,16 @@
       <select id="mediaType">
         <option value="movie">Ταινίες</option>
         <option value="tv">Σειρές</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Ταξινόμηση</label>
+      <select id="sortBy">
+        <option value="trending" selected>Trending τώρα</option>
+        <option value="popularity.desc">Πάντα δημοφιλή</option>
+        <option value="imdb_rating">Βαθμολογία IMDb</option>
+        <option value="metascore">Metascore</option>
+        <option value="primary_release_date.desc">Νεότερες</option>
       </select>
     </div>
     <button type="button" id="filtersToggleBtn" class="filters-toggle-btn">
@@ -396,30 +410,19 @@
           <option value="15">Έως 16 ετών</option>
         </select>
       </div>
-    </div>
-    <div class="field">
-      <label>Ταξινόμηση</label>
-      <select id="sortBy">
-        <option value="trending" selected>Trending τώρα</option>
-        <option value="popularity.desc">Πάντα δημοφιλή</option>
-        <option value="imdb_rating">Βαθμολογία IMDb</option>
-        <option value="metascore">Metascore</option>
-        <option value="primary_release_date.desc">Νεότερες</option>
-      </select>
+      <div class="field" style="position:relative;">
+        <button type="button" id="genreFilterBtn" class="genre-filter-btn">Είδη <span id="genreFilterCount"></span> ▾</button>
+        <div class="genre-chips-panel hidden" id="genreChipsPanel">
+          <div class="genre-chips" id="genreChips"></div>
+          <div class="toggle-row panel-toggle">
+            <input type="checkbox" id="showIndianKorean">
+            <label for="showIndianKorean">Εμφάνιση Ινδικών, Κορεατικών, Ιαπωνικών &amp; Κινεζικών τίτλων</label>
+          </div>
+        </div>
+      </div>
     </div>
     <button class="go" id="goBtn">Αναζήτηση</button>
     <button class="clear" id="clearBtn" type="button">Καθαρισμός</button>
-  </div>
-
-  <div class="field" style="margin:14px 2px;position:relative;">
-    <button type="button" id="genreFilterBtn" class="genre-filter-btn">Είδη <span id="genreFilterCount"></span> ▾</button>
-    <div class="genre-chips-panel hidden" id="genreChipsPanel">
-      <div class="genre-chips" id="genreChips"></div>
-      <div class="toggle-row panel-toggle">
-        <input type="checkbox" id="showIndianKorean">
-        <label for="showIndianKorean">Εμφάνιση Ινδικών, Κορεατικών, Ιαπωνικών &amp; Κινεζικών τίτλων</label>
-      </div>
-    </div>
   </div>
 
   <div class="meta-row">
@@ -450,6 +453,7 @@
 <script>
 const TMDB_API_KEY = '4239ea4fdcba7a007d399f16f3e31207';
 const OMDB_API_KEY = 'c1cfafa6';
+const WATCHMODE_API_KEY = 'wm_tiO3meyIX-Um4VNrt4OR00aG4gob2_BDMDRrU_S9278';
 
 const HIDDEN_LANGS = ['hi','ta','te','ml','kn','bn','pa','mr','gu','ko','ja','zh','cn']; // Ινδικές γλώσσες + Κορεατικά + Ιαπωνικά + Κινεζικά
 
@@ -655,6 +659,28 @@ function formatVoteCount(n){
   return String(n);
 }
 
+async function fetchWatchmodeProviders(tmdbId, mediaType){
+  try{
+    const searchField = mediaType === 'movie' ? 'tmdb_movie_id' : 'tmdb_tv_id';
+    const searchRes = await fetch(`https://api.watchmode.com/v1/search/?apiKey=${WATCHMODE_API_KEY}&search_field=${searchField}&search_value=${tmdbId}`);
+    const searchData = await searchRes.json();
+    const match = searchData.title_results && searchData.title_results[0];
+    if(!match) return null;
+    const sourcesRes = await fetch(`https://api.watchmode.com/v1/title/${match.id}/sources/?apiKey=${WATCHMODE_API_KEY}&regions=GR`);
+    const sources = await sourcesRes.json();
+    if(!Array.isArray(sources)) return null;
+    const relevant = sources.filter(s => s.region === 'GR' && (s.type === 'sub' || s.type === 'free'));
+    const seen = new Set();
+    const unique = [];
+    for(const s of relevant){
+      if(!seen.has(s.name)){ seen.add(s.name); unique.push(s.name); }
+    }
+    return unique.length ? unique : null;
+  }catch(e){
+    return null;
+  }
+}
+
 async function fetchRatingsByTitleYear(title, year){
   try{
     const url = `https://www.omdbapi.com/?t=${encodeURIComponent(title)}${year ? `&y=${year}` : ''}&apikey=${OMDB_API_KEY}`;
@@ -739,9 +765,21 @@ async function openModal(tmdbId, englishTitle){
     const videos = videosData.results || [];
     const recsData = await tmdbFetch(`/${state.mediaType}/${tmdbId}/recommendations`, { language: 'en-US' }).catch(() => ({ results: [] }));
     const recs = filterLanguages((recsData.results || [])).slice(0, 6);
-    const providersData = await tmdbFetch(`/${state.mediaType}/${tmdbId}/watch/providers`).catch(() => ({ results: {} }));
-    const grProviders = (providersData.results && providersData.results.GR) || null;
-    const streamProviders = grProviders ? (grProviders.flatrate || grProviders.ads || []) : [];
+    const watchmodeProviders = await fetchWatchmodeProviders(tmdbId, state.mediaType);
+    let streamProviders = [];
+    let providerSource = null;
+    if(watchmodeProviders && watchmodeProviders.length){
+      streamProviders = watchmodeProviders;
+      providerSource = 'watchmode';
+    } else {
+      const providersData = await tmdbFetch(`/${state.mediaType}/${tmdbId}/watch/providers`).catch(() => ({ results: {} }));
+      const grProviders = (providersData.results && providersData.results.GR) || null;
+      const tmdbProviders = grProviders ? (grProviders.flatrate || grProviders.ads || []) : [];
+      if(tmdbProviders.length){
+        streamProviders = tmdbProviders;
+        providerSource = 'tmdb';
+      }
+    }
     const trailer = videos.find(v => v.site === 'YouTube' && v.type === 'Trailer')
       || videos.find(v => v.site === 'YouTube' && v.type === 'Teaser')
       || videos.find(v => v.site === 'YouTube');
@@ -768,7 +806,9 @@ async function openModal(tmdbId, englishTitle){
           ${streamProviders.length ? `
             <div class="modal-providers">
               <span class="providers-label">Διαθέσιμο σε (GR):</span>
-              ${streamProviders.map(p => `<img src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt="${p.provider_name}" title="${p.provider_name}" class="provider-logo">`).join('')}
+              ${providerSource === 'watchmode'
+                ? streamProviders.map(name => `<span class="provider-chip">${name}</span>`).join('')
+                : streamProviders.map(p => `<img src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt="${p.provider_name}" title="${p.provider_name}" class="provider-logo">`).join('')}
             </div>
           ` : ''}
         </div>
