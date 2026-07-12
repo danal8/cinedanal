@@ -228,6 +228,20 @@
   .modal-body{padding:20px 22px;}
   .modal-overview{font-size:14px;line-height:1.6;color:var(--text);}
   .modal-loading{padding:40px;text-align:center;color:var(--text-dim);}
+  .modal-recs-title{
+    font-family:'Fraunces';font-weight:600;font-size:15px;margin:22px 0 10px;color:var(--text);
+  }
+  .modal-recs-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;}
+  .rec-card{flex:0 0 92px;cursor:pointer;}
+  .rec-card img{width:92px;height:138px;object-fit:cover;border-radius:6px;display:block;}
+  .rec-noimg{
+    width:92px;height:138px;background:#0f1216;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;text-align:center;font-size:10.5px;color:var(--text-dim);padding:4px;
+    font-family:'Fraunces';font-style:italic;
+  }
+  .rec-title{font-size:11px;color:var(--text-dim);margin-top:5px;line-height:1.3;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .rec-card:hover .rec-title{color:var(--gold);}
   .trailer-link{
     display:inline-flex;align-items:center;gap:6px;background:var(--gold);color:#1a1200;
     padding:9px 18px;border-radius:7px;font-weight:600;font-size:13px;text-decoration:none;
@@ -416,6 +430,9 @@ function updateGenreFilterCount(){
 els.showIndianKorean.addEventListener('change', runSearch);
 els.modalClose.addEventListener('click', closeModal);
 els.modalOverlay.addEventListener('click', (e) => { if(e.target === els.modalOverlay) closeModal(); });
+document.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && !els.modalOverlay.classList.contains('hidden')) closeModal();
+});
 
 els.minRating.addEventListener('input', () => {
   els.minRatingVal.textContent = parseFloat(els.minRating.value).toFixed(1);
@@ -545,6 +562,21 @@ function formatVoteCount(n){
   return String(n);
 }
 
+async function fetchRatingsByTitleYear(title, year){
+  try{
+    const url = `https://www.omdbapi.com/?t=${encodeURIComponent(title)}${year ? `&y=${year}` : ''}&apikey=${OMDB_API_KEY}`;
+    const res = await fetch(url);
+    const d = await res.json();
+    if(d.Response === 'False') return { imdbRating: null, metascore: null };
+    return {
+      imdbRating: d.imdbRating && d.imdbRating !== 'N/A' ? d.imdbRating : null,
+      metascore: d.Metascore && d.Metascore !== 'N/A' ? d.Metascore : null,
+    };
+  }catch(e){
+    return { imdbRating: null, metascore: null };
+  }
+}
+
 async function fetchRatings(tmdbId){
   try{
     const extUrl = `https://api.themoviedb.org/3/${state.mediaType}/${tmdbId}/external_ids?api_key=${TMDB_API_KEY}`;
@@ -566,7 +598,9 @@ async function fetchRatings(tmdbId){
 async function enrichWithImdb(items){
   for(const item of items){
     if(item._imdbRating !== undefined) continue; // ήδη φορτωμένο (ταξινόμηση IMDb/Metascore)
-    fetchRatings(item.id).then(({ imdbRating, metascore }) => {
+    const t = item.title || item.name || '';
+    const y = (item.release_date || item.first_air_date || '').slice(0,4);
+    fetchRatingsByTitleYear(t, y).then(({ imdbRating, metascore }) => {
       const slot = document.querySelector(`[data-imdb-slot="${item.id}"]`);
       const line = document.querySelector(`[data-imdb-line="${item.id}"]`);
       const metaSlot = document.querySelector(`[data-meta-slot="${item.id}"]`);
@@ -604,6 +638,8 @@ async function openModal(tmdbId, englishTitle){
 
     const videosData = await tmdbFetch(`/${state.mediaType}/${tmdbId}/videos`, { language: 'en-US' }).catch(() => ({ results: [] }));
     const videos = videosData.results || [];
+    const recsData = await tmdbFetch(`/${state.mediaType}/${tmdbId}/recommendations`, { language: 'en-US' }).catch(() => ({ results: [] }));
+    const recs = filterLanguages((recsData.results || [])).slice(0, 6);
     const trailer = videos.find(v => v.site === 'YouTube' && v.type === 'Trailer')
       || videos.find(v => v.site === 'YouTube' && v.type === 'Teaser')
       || videos.find(v => v.site === 'YouTube');
@@ -636,8 +672,27 @@ async function openModal(tmdbId, englishTitle){
           <a href="viber://forward?text=${encodedShareText}" class="share-chip viber">Viber</a>
         </div>
         <div class="modal-overview">${details.overview || 'Δεν υπάρχει διαθέσιμη περίληψη.'}</div>
+        ${recs.length ? `
+          <div class="modal-recs-title">Παρόμοιοι τίτλοι</div>
+          <div class="modal-recs-row">
+            ${recs.map(r => `
+              <div class="rec-card" data-rec-id="${r.id}" data-rec-title="${(r.title || r.name || '').replace(/"/g, '&quot;')}">
+                ${r.poster_path ? `<img src="${posterUrl(r.poster_path)}" alt="${r.title || r.name}" loading="lazy">` : `<div class="rec-noimg">${r.title || r.name || ''}</div>`}
+                <div class="rec-title">${r.title || r.name || ''}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
       </div>
     `;
+
+    els.modalContent.querySelectorAll('.rec-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const id = card.getAttribute('data-rec-id');
+        const t = card.getAttribute('data-rec-title');
+        openModal(id, t);
+      });
+    });
 
     if(imdbId){
       fetchRatings(tmdbId).then(({ imdbRating, metascore }) => {
@@ -681,16 +736,16 @@ function filterLanguages(results){
   return results.filter(r => !HIDDEN_LANGS.includes(r.original_language));
 }
 
-async function fetchRawPage(page){
+async function fetchRawPage(page, overrideSortBy){
   const q = els.query.value.trim();
-  const sortMode = els.sortBy.value;
+  const sortMode = overrideSortBy || els.sortBy.value;
   const isRatingSort = sortMode === 'imdb_rating' || sortMode === 'metascore';
   let data;
   if(q){
     data = await tmdbFetch(`/search/${state.mediaType}`, { query: q, page, language: 'en-US' });
   } else {
     const params = {
-      sort_by: isRatingSort ? 'popularity.desc' : sortMode,
+      sort_by: isRatingSort ? 'vote_count.desc' : sortMode,
       page,
       'vote_count.gte': isRatingSort ? 100 : 20,
       language: 'en-US',
@@ -740,7 +795,7 @@ async function fetchRawPage(page){
   return { results, totalPages: data.total_pages || 1 };
 }
 
-const RATING_POOL_PAGES = 4; // ~80 τίτλοι δεξαμενή για σωστό global φιλτράρισμα/ταξινόμηση
+const RATING_POOL_PAGES = 5; // 100 πιο δημοφιλείς/γνωστοί τίτλοι — σταθερή δεξαμενή
 
 async function fetchEnrichedPool(){
   const sortMode = els.sortBy.value;
@@ -750,7 +805,7 @@ async function fetchEnrichedPool(){
   const q = els.query.value.trim();
   const pagesToFetch = q ? [1, 2, 3] : Array.from({length: RATING_POOL_PAGES}, (_, i) => i + 1);
 
-  const pageResults = await Promise.all(pagesToFetch.map(p => fetchRawPage(p).catch(() => ({ results: [] }))));
+  const pageResults = await Promise.all(pagesToFetch.map(p => fetchRawPage(p, 'vote_count.desc').catch(() => ({ results: [] }))));
   let pool = [];
   const seenIds = new Set();
   for(const pr of pageResults){
@@ -762,7 +817,11 @@ async function fetchEnrichedPool(){
     }
   }
 
-  const ratings = await Promise.all(pool.map(r => fetchRatings(r.id)));
+  const ratings = await Promise.all(pool.map(r => {
+    const t = r.title || r.name || '';
+    const y = (r.release_date || r.first_air_date || '').slice(0,4);
+    return fetchRatingsByTitleYear(t, y);
+  }));
   pool.forEach((r, i) => {
     r._imdbRating = ratings[i].imdbRating ? parseFloat(ratings[i].imdbRating) : null;
     r._metascore = ratings[i].metascore ? parseInt(ratings[i].metascore) : null;
