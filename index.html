@@ -92,14 +92,40 @@
   .meta-row .count{color:var(--text-dim);font-size:13px;font-family:'IBM Plex Mono';}
   .sortfield select{background:var(--bg-raised);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:7px;font-size:12.5px;}
 
+  .view-toggle{display:flex;gap:4px;background:var(--bg-raised);border:1px solid var(--line);border-radius:7px;padding:3px;}
+  .view-toggle button{
+    background:transparent;border:none;color:var(--text-dim);padding:6px 12px;border-radius:5px;
+    cursor:pointer;font-size:12.5px;font-family:'IBM Plex Sans';
+  }
+  .view-toggle button.active{background:var(--gold);color:#1a1200;font-weight:600;}
+
+  .toggle-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-dim);}
+  .toggle-row input{accent-color:var(--gold);width:15px;height:15px;cursor:pointer;}
+  .toggle-row label{cursor:pointer;}
+
   .grid{
     display:grid;grid-template-columns:repeat(auto-fill, minmax(190px, 1fr));gap:20px;
   }
+  .grid.list-mode{
+    display:flex;flex-direction:column;gap:8px;
+  }
   .card{
     background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
-    display:flex;flex-direction:column;transition:transform .18s, border-color .18s;
+    display:flex;flex-direction:column;transition:transform .18s, border-color .18s;cursor:pointer;
   }
   .card:hover{transform:translateY(-3px);border-color:var(--gold-dim);}
+  .list-mode .card{
+    flex-direction:row;align-items:stretch;transform:none !important;
+  }
+  .list-mode .card:hover{transform:none !important;border-color:var(--gold-dim);}
+  .list-mode .poster-wrap{width:56px;flex:0 0 56px;aspect-ratio:auto;}
+  .list-mode .card-body{flex-direction:row;align-items:center;gap:16px;padding:10px 16px;flex:1;}
+  .list-mode .card-title{min-width:200px;}
+  .list-mode .card-sub{min-width:50px;}
+  .list-mode .card-type{margin-top:0;}
+  .list-mode .badges{position:static;flex-direction:row;margin-left:auto;}
+  .list-mode .badge{white-space:nowrap;}
+
   .poster-wrap{position:relative;aspect-ratio:2/3;background:#0f1216;}
   .poster-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
   .poster-wrap .noimg{
@@ -125,6 +151,38 @@
   .state{padding:60px 20px;text-align:center;color:var(--text-dim);}
   .state .icon{font-size:32px;margin-bottom:10px;}
   .state.error{color:var(--danger);}
+
+  .load-more-row{display:flex;justify-content:center;margin-top:28px;}
+  button.loadmore{
+    background:transparent;border:1px solid var(--gold-dim);color:var(--gold);padding:10px 26px;border-radius:7px;
+    font-weight:600;cursor:pointer;font-size:13px;letter-spacing:.3px;
+  }
+  button.loadmore:hover{background:rgba(232,179,74,0.1);}
+  button.loadmore:disabled{opacity:.5;cursor:default;}
+
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(5,6,8,0.82);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;
+  }
+  .modal-overlay.hidden{display:none;}
+  .modal{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:640px;width:100%;
+    max-height:86vh;overflow-y:auto;position:relative;
+  }
+  .modal-close{
+    position:absolute;top:12px;right:14px;background:rgba(0,0,0,0.4);border:none;color:var(--text);
+    width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;z-index:2;
+  }
+  .modal-hero{display:flex;gap:18px;padding:22px;border-bottom:1px solid var(--line);}
+  .modal-hero img{width:120px;border-radius:8px;flex:0 0 120px;}
+  .modal-hero .noimg{width:120px;height:180px;flex:0 0 120px;background:#0f1216;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-family:'Fraunces';font-style:italic;font-size:12px;text-align:center;padding:6px;}
+  .modal-title{font-family:'Fraunces';font-weight:700;font-size:22px;margin:0 0 6px;}
+  .modal-meta{font-family:'IBM Plex Mono';font-size:12px;color:var(--text-dim);margin-bottom:10px;}
+  .modal-badges{display:flex;gap:8px;margin-bottom:10px;}
+  .modal-genres{font-size:12px;color:var(--teal);}
+  .modal-body{padding:20px 22px;}
+  .modal-overview{font-size:14px;line-height:1.6;color:var(--text);}
+  .modal-loading{padding:40px;text-align:center;color:var(--text-dim);}
 
   footer{margin-top:50px;color:var(--text-dim);font-size:11.5px;text-align:center;font-family:'IBM Plex Mono';}
 </style>
@@ -183,12 +241,32 @@
     <div class="genre-chips" id="genreChips"></div>
   </div>
 
-  <div class="meta-row">
-    <span class="count" id="resultCount"></span>
+  <div class="toggle-row" style="margin:10px 2px;">
+    <input type="checkbox" id="showIndianKorean">
+    <label for="showIndianKorean">Εμφάνιση Ινδικών &amp; Κορεατικών τίτλων (κρυμμένα από προεπιλογή)</label>
   </div>
 
-  <div id="results" class="grid"></div>
+  <div class="meta-row">
+    <span class="count" id="resultCount"></span>
+    <div class="view-toggle">
+      <button id="viewListBtn" class="active">☰ Λίστα</button>
+      <button id="viewGridBtn">▦ Πλακίδια</button>
+    </div>
+  </div>
 
+  <div id="results" class="grid list-mode"></div>
+
+  <div class="load-more-row" id="loadMoreRow" style="display:none;">
+    <button class="loadmore" id="loadMoreBtn">Φόρτωση περισσότερων</button>
+  </div>
+
+</div>
+
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div id="modalContent"><div class="modal-loading">Φόρτωση...</div></div>
+  </div>
 </div>
 
 <footer>CineReel — δεδομένα από TMDb &amp; OMDb (IMDb ratings). Προσωπικό εργαλείο, όχι επίσημη εφαρμογή.</footer>
@@ -197,10 +275,17 @@
 const TMDB_API_KEY = '4239ea4fdcba7a007d399f16f3e31207';
 const OMDB_API_KEY = 'd70891e6';
 
+const HIDDEN_LANGS = ['hi','ta','te','ml','kn','bn','pa','mr','gu','ko']; // Ινδικές γλώσσες + Κορεατικά
+
 const state = {
   genres: {},
   selectedGenres: new Set(),
   mediaType: 'movie',
+  viewMode: 'list',
+  currentPage: 1,
+  totalPages: 1,
+  lastQuery: '',
+  lastResults: [],
 };
 
 const els = {
@@ -215,7 +300,32 @@ const els = {
   genreChips: document.getElementById('genreChips'),
   results: document.getElementById('results'),
   resultCount: document.getElementById('resultCount'),
+  showIndianKorean: document.getElementById('showIndianKorean'),
+  viewListBtn: document.getElementById('viewListBtn'),
+  viewGridBtn: document.getElementById('viewGridBtn'),
+  loadMoreRow: document.getElementById('loadMoreRow'),
+  loadMoreBtn: document.getElementById('loadMoreBtn'),
+  modalOverlay: document.getElementById('modalOverlay'),
+  modalContent: document.getElementById('modalContent'),
+  modalClose: document.getElementById('modalClose'),
 };
+
+function applyViewMode(){
+  if(state.viewMode === 'list'){
+    els.results.classList.add('list-mode');
+    els.viewListBtn.classList.add('active');
+    els.viewGridBtn.classList.remove('active');
+  } else {
+    els.results.classList.remove('list-mode');
+    els.viewGridBtn.classList.add('active');
+    els.viewListBtn.classList.remove('active');
+  }
+}
+els.viewListBtn.addEventListener('click', () => { state.viewMode = 'list'; applyViewMode(); });
+els.viewGridBtn.addEventListener('click', () => { state.viewMode = 'grid'; applyViewMode(); });
+els.showIndianKorean.addEventListener('change', runSearch);
+els.modalClose.addEventListener('click', closeModal);
+els.modalOverlay.addEventListener('click', (e) => { if(e.target === els.modalOverlay) closeModal(); });
 
 els.minRating.addEventListener('input', () => {
   els.minRatingVal.textContent = parseFloat(els.minRating.value).toFixed(1);
@@ -270,8 +380,8 @@ function posterUrl(path){
   return path ? `https://image.tmdb.org/t/p/w342${path}` : null;
 }
 
-function renderResultsSkeleton(items){
-  els.results.innerHTML = '';
+function renderResultsSkeleton(items, append=false){
+  if(!append) els.results.innerHTML = '';
   items.forEach(item => {
     const title = item.title || item.name || 'Άγνωστος τίτλος';
     const date = item.release_date || item.first_air_date || '';
@@ -282,7 +392,7 @@ function renderResultsSkeleton(items){
     card.className = 'card';
     card.innerHTML = `
       <div class="poster-wrap">
-        ${poster ? `<img src="${poster}" alt="${title}">` : `<div class="noimg">Χωρίς αφίσα<br>${title}</div>`}
+        ${poster ? `<img src="${poster}" alt="${title}" loading="lazy">` : `<div class="noimg">Χωρίς αφίσα<br>${title}</div>`}
         <div class="badges">
           <span class="badge tmdb" title="Βαθμολογία TMDb">★ ${item.vote_average ? item.vote_average.toFixed(1) : '—'}</span>
           <span class="badge pending" data-imdb-slot="${item.id}">IMDb…</span>
@@ -294,6 +404,7 @@ function renderResultsSkeleton(items){
         <div class="card-type">${state.mediaType === 'movie' ? 'Ταινία' : 'Σειρά'}</div>
       </div>
     `;
+    card.addEventListener('click', () => openModal(item.id));
     els.results.appendChild(card);
   });
 }
@@ -330,6 +441,63 @@ async function enrichWithImdb(items){
   }
 }
 
+async function openModal(tmdbId){
+  els.modalOverlay.classList.remove('hidden');
+  els.modalContent.innerHTML = '<div class="modal-loading">Φόρτωση...</div>';
+  try{
+    const details = await tmdbFetch(`/${state.mediaType}/${tmdbId}`, { append_to_response: 'external_ids' });
+    const title = details.title || details.name;
+    const date = details.release_date || details.first_air_date || '';
+    const year = date ? date.slice(0,4) : '—';
+    const poster = posterUrl(details.poster_path);
+    const genres = (details.genres || []).map(g => g.name).join(' · ');
+    const runtime = state.mediaType === 'movie'
+      ? (details.runtime ? `${details.runtime} λεπτά` : '—')
+      : (details.number_of_seasons ? `${details.number_of_seasons} σεζόν, ${details.number_of_episodes || '?'} επεισόδια` : '—');
+    const imdbId = details.external_ids && details.external_ids.imdb_id;
+
+    els.modalContent.innerHTML = `
+      <div class="modal-hero">
+        ${poster ? `<img src="${poster}" alt="${title}">` : `<div class="noimg">Χωρίς αφίσα</div>`}
+        <div>
+          <div class="modal-title">${title}</div>
+          <div class="modal-meta">${year} · ${runtime}</div>
+          <div class="modal-badges">
+            <span class="badge tmdb">★ TMDb ${details.vote_average ? details.vote_average.toFixed(1) : '—'}</span>
+            <span class="badge pending" id="modalImdbBadge">IMDb…</span>
+          </div>
+          <div class="modal-genres">${genres || ''}</div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-overview">${details.overview || 'Δεν υπάρχει διαθέσιμη περίληψη.'}</div>
+      </div>
+    `;
+
+    if(imdbId){
+      fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_API_KEY}`)
+        .then(r => r.json())
+        .then(d => {
+          const badge = document.getElementById('modalImdbBadge');
+          if(!badge) return;
+          if(d.imdbRating && d.imdbRating !== 'N/A'){
+            badge.textContent = `IMDb ${d.imdbRating}`;
+            badge.classList.remove('pending');
+            badge.classList.add('imdb');
+          } else {
+            badge.textContent = 'IMDb —';
+          }
+        }).catch(() => {});
+    }
+  }catch(e){
+    els.modalContent.innerHTML = '<div class="modal-loading">Δεν φορτώθηκαν οι λεπτομέρειες. Δοκίμασε ξανά.</div>';
+  }
+}
+
+function closeModal(){
+  els.modalOverlay.classList.add('hidden');
+}
+
 function setState(mode, msg){
   if(mode === 'loading'){
     els.results.innerHTML = `<div class="state"><div class="icon">🎞️</div>${msg || 'Αναζήτηση...'}</div>`;
@@ -340,62 +508,80 @@ function setState(mode, msg){
   }
 }
 
+function filterLanguages(results){
+  if(els.showIndianKorean.checked) return results;
+  return results.filter(r => !HIDDEN_LANGS.includes(r.original_language));
+}
+
+async function fetchPage(page){
+  const q = els.query.value.trim();
+  let data;
+  if(q){
+    data = await tmdbFetch(`/search/${state.mediaType}`, { query: q, page });
+  } else {
+    const params = {
+      sort_by: els.sortBy.value,
+      page,
+      'vote_count.gte': 20,
+    };
+    if(state.selectedGenres.size) params.with_genres = Array.from(state.selectedGenres).join(',');
+    const dateField = state.mediaType === 'movie' ? 'primary_release_date' : 'first_air_date';
+    if(els.dateFrom.value) params[`${dateField}.gte`] = `${els.dateFrom.value}-01-01`;
+    if(els.dateTo.value) params[`${dateField}.lte`] = `${els.dateTo.value}-12-31`;
+    if(parseFloat(els.minRating.value) > 0) params['vote_average.gte'] = els.minRating.value;
+    data = await tmdbFetch(`/discover/${state.mediaType}`, params);
+  }
+
+  let results = data.results || [];
+  if(q){
+    if(state.selectedGenres.size){
+      results = results.filter(r => (r.genre_ids||[]).some(g => state.selectedGenres.has(String(g))));
+    }
+    if(parseFloat(els.minRating.value) > 0){
+      results = results.filter(r => (r.vote_average||0) >= parseFloat(els.minRating.value));
+    }
+    const yFrom = els.dateFrom.value ? parseInt(els.dateFrom.value) : null;
+    const yTo = els.dateTo.value ? parseInt(els.dateTo.value) : null;
+    if(yFrom || yTo){
+      results = results.filter(r => {
+        const d = r.release_date || r.first_air_date || '';
+        if(!d) return false;
+        const y = parseInt(d.slice(0,4));
+        if(yFrom && y < yFrom) return false;
+        if(yTo && y > yTo) return false;
+        return true;
+      });
+    }
+  }
+  results = filterLanguages(results);
+  return { results, totalPages: data.total_pages || 1 };
+}
+
 async function runSearch(){
   els.goBtn.disabled = true;
   setState('loading');
   els.resultCount.textContent = '';
+  els.loadMoreRow.style.display = 'none';
+  state.currentPage = 1;
 
   try{
-    const q = els.query.value.trim();
-    let data;
-    if(q){
-      data = await tmdbFetch(`/search/${state.mediaType}`, { query: q, page: 1 });
-    } else {
-      const params = {
-        sort_by: els.sortBy.value,
-        page: 1,
-        'vote_count.gte': 20,
-      };
-      if(state.selectedGenres.size) params.with_genres = Array.from(state.selectedGenres).join(',');
-      const dateField = state.mediaType === 'movie' ? 'primary_release_date' : 'first_air_date';
-      if(els.dateFrom.value) params[`${dateField}.gte`] = `${els.dateFrom.value}-01-01`;
-      if(els.dateTo.value) params[`${dateField}.lte`] = `${els.dateTo.value}-12-31`;
-      if(parseFloat(els.minRating.value) > 0) params['vote_average.gte'] = els.minRating.value;
-      data = await tmdbFetch(`/discover/${state.mediaType}`, params);
-    }
-
-    let results = data.results || [];
-    // if searching by query, still allow client-side genre/rating/year filter
-    if(q){
-      if(state.selectedGenres.size){
-        results = results.filter(r => (r.genre_ids||[]).some(g => state.selectedGenres.has(String(g))));
-      }
-      if(parseFloat(els.minRating.value) > 0){
-        results = results.filter(r => (r.vote_average||0) >= parseFloat(els.minRating.value));
-      }
-      const yFrom = els.dateFrom.value ? parseInt(els.dateFrom.value) : null;
-      const yTo = els.dateTo.value ? parseInt(els.dateTo.value) : null;
-      if(yFrom || yTo){
-        results = results.filter(r => {
-          const d = r.release_date || r.first_air_date || '';
-          if(!d) return false;
-          const y = parseInt(d.slice(0,4));
-          if(yFrom && y < yFrom) return false;
-          if(yTo && y > yTo) return false;
-          return true;
-        });
-      }
-    }
+    const { results, totalPages } = await fetchPage(1);
+    state.totalPages = totalPages;
+    state.lastResults = results;
 
     if(!results.length){
       setState('empty', 'Δεν βρέθηκαν αποτελέσματα με αυτά τα φίλτρα. Δοκίμασε να χαλαρώσεις κάποιο φίλτρο.');
       return;
     }
 
-    els.resultCount.textContent = `${results.length} αποτελέσματα`;
+    els.results.innerHTML = '';
+    els.resultCount.textContent = `${results.length} αποτελέσματα (σελίδα 1 από ${totalPages})`;
     renderResultsSkeleton(results);
     enrichWithImdb(results);
 
+    if(state.currentPage < state.totalPages){
+      els.loadMoreRow.style.display = 'flex';
+    }
   }catch(e){
     setState('error', 'Κάτι πήγε στραβά με το αίτημα. Δοκίμασε ξανά σε λίγο.');
   } finally {
@@ -403,8 +589,31 @@ async function runSearch(){
   }
 }
 
-els.goBtn.addEventListener('click', runSearch);
+async function loadMore(){
+  els.loadMoreBtn.disabled = true;
+  els.loadMoreBtn.textContent = 'Φόρτωση...';
+  try{
+    state.currentPage += 1;
+    const { results } = await fetchPage(state.currentPage);
+    state.lastResults = state.lastResults.concat(results);
+    renderResultsSkeleton(results, true);
+    enrichWithImdb(results);
+    els.resultCount.textContent = `${state.lastResults.length} αποτελέσματα (σελίδα ${state.currentPage} από ${state.totalPages})`;
+    if(state.currentPage >= state.totalPages){
+      els.loadMoreRow.style.display = 'none';
+    }
+  }catch(e){
+    // αν αποτύχει, απλά άσε το κουμπί ενεργό για νέα προσπάθεια
+  } finally {
+    els.loadMoreBtn.disabled = false;
+    els.loadMoreBtn.textContent = 'Φόρτωση περισσότερων';
+  }
+}
 
+els.goBtn.addEventListener('click', runSearch);
+els.loadMoreBtn.addEventListener('click', loadMore);
+
+applyViewMode();
 setState('empty', 'Επίλεξε φίλτρα και πάτα Αναζήτηση για να ξεκινήσεις.');
 loadGenres();
 </script>
