@@ -138,6 +138,13 @@
   }
   .card:hover{transform:translateY(-3px);border-color:var(--gold-dim);}
   .rank{display:none;}
+  .stremio-btn{
+    display:none;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 30px;
+    background:rgba(90,154,161,0.15);border:1px solid rgba(90,154,161,0.4);border-radius:50%;
+    color:var(--teal);text-decoration:none;font-size:12px;margin-left:8px;
+  }
+  .stremio-btn:hover{background:rgba(90,154,161,0.3);}
+  .list-mode .stremio-btn{display:flex;}
 
   .list-mode .card{
     flex-direction:row;align-items:center;transform:none !important;
@@ -229,6 +236,9 @@
   .modal-meta{font-family:'IBM Plex Mono';font-size:12px;color:var(--text-dim);margin-bottom:10px;}
   .modal-badges{display:flex;gap:8px;margin-bottom:10px;}
   .modal-genres{font-size:12px;color:var(--teal);}
+  .modal-providers{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;}
+  .providers-label{font-size:10.5px;color:var(--text-dim);margin-right:2px;}
+  .provider-logo{width:28px;height:28px;border-radius:6px;}
   .modal-body{padding:20px 22px;}
   .modal-overview{font-size:14px;line-height:1.6;color:var(--text);}
   .modal-loading{padding:40px;text-align:center;color:var(--text-dim);}
@@ -276,42 +286,56 @@
 
   footer{margin-top:50px;color:var(--text-dim);font-size:11.5px;text-align:center;font-family:'IBM Plex Mono';}
 
+  .filters-toggle-btn{
+    display:none;
+    background:var(--bg-raised);border:1px solid var(--line);color:var(--text);
+    padding:9px 12px;border-radius:7px;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans';
+    align-items:center;gap:4px;
+  }
+  #advancedFilters{display:contents;}
+
   @media (max-width: 640px){
-    .wrap{padding:18px 14px 60px;}
-    .brand .reel{font-size:9px;letter-spacing:2px;}
-    h1{font-size:26px;}
-    .tagline{font-size:12.5px;}
-    header{margin-bottom:18px;padding-bottom:14px;}
-    .controls{padding:14px;gap:8px 6px;}
+    .wrap{padding:14px 12px 50px;}
+    .brand .reel{font-size:8px;letter-spacing:1.5px;}
+    h1{font-size:20px;}
+    .tagline{font-size:11.5px;}
+    header{margin-bottom:14px;padding-bottom:10px;}
+    .controls{padding:12px;gap:8px 6px;}
     .field input[type=text]{min-width:0;width:100%;}
     .field.grow{flex:1 1 100%;}
     .field{flex:1 1 auto;}
-    .controls .field:nth-child(2),
-    .controls .field:nth-child(3),
-    .controls .field:nth-child(4),
-    .controls .field:nth-child(5),
-    .controls .field:nth-child(6),
-    .controls #ageLimitField{
+
+    .filters-toggle-btn{display:inline-flex;flex:1 1 30%;justify-content:center;min-width:0;}
+
+    .controls > .field:nth-child(2),
+    .controls > .field:nth-child(5){
       flex:1 1 30%;
       min-width:0;
     }
-    .controls .field:nth-child(2) select,
-    .controls .field:nth-child(3) input,
-    .controls .field:nth-child(4) input,
-    .controls .field:nth-child(6) select,
-    .controls #ageLimitField select{
+    .controls > .field:nth-child(2) select,
+    .controls > .field:nth-child(5) select{
       min-width:0;width:100%;padding:8px 6px;font-size:12px;
     }
+
+    #advancedFilters.open{
+      display:flex;flex-wrap:wrap;gap:8px 6px;width:100%;
+      background:var(--bg-raised);border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:2px;
+    }
+    #advancedFilters .field{flex:1 1 45%;min-width:0;}
+    #advancedFilters .field input,
+    #advancedFilters .field select{min-width:0;width:100%;padding:8px 6px;font-size:12px;}
+
     .controls .field label{font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .controls .range-row{gap:4px;}
     .controls .range-row input[type=range]{width:100%;min-width:0;}
     .controls .range-val{font-size:11px;min-width:22px;}
     button.go, button.clear{padding:10px 16px;font-size:13px;}
     .list-mode .card-title{font-size:13.5px;}
-    .rank{flex:0 0 26px !important;font-size:12px;}
-    .list-mode .poster-wrap{width:42px;flex:0 0 42px;}
-    .list-mode .rating-box{margin-left:8px;}
-    .list-mode .rating-line{font-size:11px;}
+    .rank{flex:0 0 22px !important;font-size:11px;}
+    .list-mode .poster-wrap{width:38px;flex:0 0 38px;}
+    .list-mode .rating-box{margin-left:4px;}
+    .list-mode .rating-line{font-size:10.5px;}
+    .stremio-btn{width:26px;height:26px;flex:0 0 26px;margin-left:4px;}
     .modal-hero{flex-direction:column;}
     .modal-hero img, .modal-hero .noimg{width:100%;flex:none;height:auto;aspect-ratio:2/3;}
   }
@@ -340,19 +364,30 @@
         <option value="tv">Σειρές</option>
       </select>
     </div>
-    <div class="field">
-      <label for="yearFrom">Από έτος</label>
-      <input type="number" id="yearFrom" placeholder="π.χ. 2015" min="1900" max="2030">
-    </div>
-    <div class="field">
-      <label for="yearTo">Έως έτος</label>
-      <input type="number" id="yearTo" placeholder="π.χ. 2026" min="1900" max="2030">
-    </div>
-    <div class="field">
-      <label>Ελάχιστο IMDb rating</label>
-      <div class="range-row">
-        <input type="range" id="minRating" min="0" max="10" step="0.5" value="0">
-        <span class="range-val" id="minRatingVal">0.0</span>
+    <button type="button" id="filtersToggleBtn" class="filters-toggle-btn">⚙ Φίλτρα</button>
+    <div class="advanced-filters" id="advancedFilters">
+      <div class="field">
+        <label for="yearFrom">Από έτος</label>
+        <input type="number" id="yearFrom" placeholder="π.χ. 2015" min="1900" max="2030">
+      </div>
+      <div class="field">
+        <label for="yearTo">Έως έτος</label>
+        <input type="number" id="yearTo" placeholder="π.χ. 2026" min="1900" max="2030">
+      </div>
+      <div class="field">
+        <label>Ελάχιστο IMDb rating</label>
+        <div class="range-row">
+          <input type="range" id="minRating" min="0" max="10" step="0.5" value="0">
+          <span class="range-val" id="minRatingVal">0.0</span>
+        </div>
+      </div>
+      <div class="field" id="ageLimitField">
+        <label for="ageLimit">Ηλικιακό όριο</label>
+        <select id="ageLimit">
+          <option value="">Χωρίς όριο</option>
+          <option value="12A">Έως 12 ετών</option>
+          <option value="15">Έως 16 ετών</option>
+        </select>
       </div>
     </div>
     <div class="field">
@@ -363,14 +398,6 @@
         <option value="imdb_rating">Βαθμολογία IMDb</option>
         <option value="metascore">Metascore</option>
         <option value="primary_release_date.desc">Νεότερες</option>
-      </select>
-    </div>
-    <div class="field" id="ageLimitField">
-      <label for="ageLimit">Ηλικιακό όριο</label>
-      <select id="ageLimit">
-        <option value="">Χωρίς όριο</option>
-        <option value="12A">Έως 12 ετών</option>
-        <option value="15">Έως 16 ετών</option>
       </select>
     </div>
     <button class="go" id="goBtn">Αναζήτηση</button>
@@ -584,6 +611,7 @@ function renderResultsSkeleton(items, append=false){
 
     const card = document.createElement('div');
     card.className = 'card';
+    const stremioUrl = `stremio:///search?search=${encodeURIComponent(title)}`;
     card.innerHTML = `
       <div class="rank">#${rank}</div>
       <div class="poster-wrap">
@@ -601,6 +629,7 @@ function renderResultsSkeleton(items, append=false){
             <span class="card-type">${state.mediaType === 'movie' ? 'Ταινία' : 'Σειρά'}</span>
           </div>
         </div>
+        <a href="${stremioUrl}" class="stremio-btn" title="Άνοιγμα στο Stremio" onclick="event.stopPropagation()">▶</a>
         <div class="rating-box">
           <div class="rating-line imdb-line" data-imdb-line="${item.id}"><span class="star">★</span> ${imdbText}</div>
           <div class="rating-line meta-line" data-meta-slot="${item.id}">${metaText}</div>
@@ -703,6 +732,9 @@ async function openModal(tmdbId, englishTitle){
     const videos = videosData.results || [];
     const recsData = await tmdbFetch(`/${state.mediaType}/${tmdbId}/recommendations`, { language: 'en-US' }).catch(() => ({ results: [] }));
     const recs = filterLanguages((recsData.results || [])).slice(0, 6);
+    const providersData = await tmdbFetch(`/${state.mediaType}/${tmdbId}/watch/providers`).catch(() => ({ results: {} }));
+    const grProviders = (providersData.results && providersData.results.GR) || null;
+    const streamProviders = grProviders ? (grProviders.flatrate || grProviders.ads || []) : [];
     const trailer = videos.find(v => v.site === 'YouTube' && v.type === 'Trailer')
       || videos.find(v => v.site === 'YouTube' && v.type === 'Teaser')
       || videos.find(v => v.site === 'YouTube');
@@ -726,6 +758,12 @@ async function openModal(tmdbId, englishTitle){
             ${certification ? `<span class="badge age">${certification}</span>` : ''}
           </div>
           <div class="modal-genres">${genres || ''}</div>
+          ${streamProviders.length ? `
+            <div class="modal-providers">
+              <span class="providers-label">Διαθέσιμο σε (GR):</span>
+              ${streamProviders.map(p => `<img src="https://image.tmdb.org/t/p/w45${p.logo_path}" alt="${p.provider_name}" title="${p.provider_name}" class="provider-logo">`).join('')}
+            </div>
+          ` : ''}
         </div>
       </div>
       <div class="modal-body">
@@ -1050,6 +1088,14 @@ function clearFilters(){
   els.resultCount.textContent = '';
 }
 els.clearBtn.addEventListener('click', clearFilters);
+
+const filtersToggleBtn = document.getElementById('filtersToggleBtn');
+const advancedFilters = document.getElementById('advancedFilters');
+if(filtersToggleBtn && advancedFilters){
+  filtersToggleBtn.addEventListener('click', () => {
+    advancedFilters.classList.toggle('open');
+  });
+}
 
 els.goBtn.addEventListener('click', runSearch);
 els.loadMoreBtn.addEventListener('click', loadMore);
