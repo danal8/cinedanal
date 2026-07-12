@@ -138,13 +138,11 @@
   }
   .card:hover{transform:translateY(-3px);border-color:var(--gold-dim);}
   .rank{display:none;}
-  .stremio-btn{
-    display:none;align-items:center;justify-content:center;gap:5px;height:30px;padding:0 12px;
-    background:rgba(90,154,161,0.15);border:1px solid rgba(90,154,161,0.4);border-radius:16px;
-    color:var(--teal);text-decoration:none;font-size:11.5px;font-weight:600;margin-left:8px;white-space:nowrap;
+  .stremio-inline{
+    display:inline-flex;align-items:center;gap:3px;color:var(--teal);text-decoration:none;
+    font-size:11px;font-weight:600;white-space:nowrap;
   }
-  .stremio-btn:hover{background:rgba(90,154,161,0.3);}
-  .list-mode .stremio-btn{display:flex;}
+  .stremio-inline:hover{color:var(--gold);}
 
   .list-mode .card{
     flex-direction:row;align-items:center;transform:none !important;
@@ -165,9 +163,8 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px;
   }
   .list-mode .card-sub{
-    display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-dim);
+    display:flex;align-items:center;gap:10px;font-size:11.5px;color:var(--text-dim);
   }
-  .list-mode .card-type{margin-top:0;}
   .list-mode .rating-box{
     flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;margin-left:14px;
   }
@@ -198,10 +195,6 @@
   .card-body{padding:12px 13px 14px;display:flex;flex-direction:column;gap:5px;flex:1;}
   .card-title{font-family:'Fraunces';font-weight:600;font-size:15.5px;line-height:1.25;}
   .card-sub{font-size:12px;color:var(--text-dim);font-family:'IBM Plex Mono';}
-  .card-type{
-    align-self:flex-start;font-size:10px;text-transform:uppercase;letter-spacing:1px;
-    color:var(--teal);border:1px solid rgba(90,154,161,0.4);padding:2px 6px;border-radius:4px;margin-top:2px;
-  }
 
   .state{padding:60px 20px;text-align:center;color:var(--text-dim);}
   .state .icon{font-size:32px;margin-bottom:10px;}
@@ -343,7 +336,7 @@
     .list-mode .poster-wrap{width:38px;flex:0 0 38px;}
     .list-mode .rating-box{margin-left:4px;}
     .list-mode .rating-line{font-size:10.5px;}
-    .stremio-btn{height:26px;padding:0 8px;margin-left:4px;font-size:9.5px;gap:3px;}
+    .stremio-inline{font-size:10px;}
     .modal-hero{flex-direction:column;}
     .modal-hero img.modal-poster-img, .modal-hero .noimg{width:100%;flex:none;height:auto;aspect-ratio:2/3;}
   }
@@ -637,10 +630,9 @@ function renderResultsSkeleton(items, append=false){
           <div class="card-title">${title}</div>
           <div class="card-sub">
             <span>${year}</span>
-            <span class="card-type">${state.mediaType === 'movie' ? 'Ταινία' : 'Σειρά'}</span>
+            <a href="${stremioUrl}" class="stremio-inline" title="Άνοιγμα στο Stremio" onclick="event.stopPropagation()">▶ Stremio</a>
           </div>
         </div>
-        <a href="${stremioUrl}" class="stremio-btn" title="Άνοιγμα στο Stremio" onclick="event.stopPropagation()">▶ <span class="stremio-btn-text">Stremio</span></a>
         <div class="rating-box">
           <div class="rating-line imdb-line" data-imdb-line="${item.id}"><span class="star">★</span> ${imdbText}</div>
           <div class="rating-line meta-line" data-meta-slot="${item.id}">${metaText}</div>
