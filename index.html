@@ -412,7 +412,7 @@
 
 <script>
 const TMDB_API_KEY = '4239ea4fdcba7a007d399f16f3e31207';
-const OMDB_API_KEY = 'f6c514c3';
+const OMDB_API_KEY = 'c1cfafa6';
 
 const HIDDEN_LANGS = ['hi','ta','te','ml','kn','bn','pa','mr','gu','ko','ja']; // Ινδικές γλώσσες + Κορεατικά + Ιαπωνικά
 
@@ -911,7 +911,10 @@ async function fetchEnrichedPool(){
   const q = els.query.value.trim();
   const pagesToFetch = q ? [1, 2, 3] : Array.from({length: RATING_POOL_PAGES}, (_, i) => i + 1);
 
-  const pageResults = await Promise.all(pagesToFetch.map(p => fetchRawPage(p, 'vote_count.desc').catch(() => ({ results: [] }))));
+  // Για ταξινόμηση IMDb/Metascore θέλουμε σταθερή δεξαμενή γνωστών τίτλων (vote_count.desc).
+  // Για όλες τις άλλες περιπτώσεις (π.χ. Trending + ελάχιστο rating) σεβόμαστε την επιλεγμένη ταξινόμηση.
+  const poolSortOverride = isRatingSort ? 'vote_count.desc' : undefined;
+  const pageResults = await Promise.all(pagesToFetch.map(p => fetchRawPage(p, poolSortOverride).catch(() => ({ results: [] }))));
   let pool = [];
   const seenIds = new Set();
   for(const pr of pageResults){
