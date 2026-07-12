@@ -276,9 +276,8 @@
   .trailer-link:hover{background:#f0c165;}
   .modal-share-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
   .share-chip{
-    display:inline-flex;align-items:center;gap:6px;background:var(--bg-raised);border:1px solid var(--line);
-    color:var(--text);padding:9px 16px;border-radius:7px;font-size:13px;text-decoration:none;
-    font-family:'IBM Plex Sans';
+    display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;
+    background:var(--bg-raised);border:1px solid var(--line);color:var(--text-dim);border-radius:50%;
   }
   .share-chip:hover{border-color:var(--gold-dim);}
   .share-chip.whatsapp:hover{border-color:#25D366;color:#25D366;}
@@ -415,7 +414,7 @@
       <div class="genre-chips" id="genreChips"></div>
       <div class="toggle-row panel-toggle">
         <input type="checkbox" id="showIndianKorean">
-        <label for="showIndianKorean">Εμφάνιση Ινδικών, Κορεατικών &amp; Ιαπωνικών τίτλων</label>
+        <label for="showIndianKorean">Εμφάνιση Ινδικών, Κορεατικών, Ιαπωνικών &amp; Κινεζικών τίτλων</label>
       </div>
     </div>
   </div>
@@ -449,7 +448,7 @@
 const TMDB_API_KEY = '4239ea4fdcba7a007d399f16f3e31207';
 const OMDB_API_KEY = 'c1cfafa6';
 
-const HIDDEN_LANGS = ['hi','ta','te','ml','kn','bn','pa','mr','gu','ko','ja']; // Ινδικές γλώσσες + Κορεατικά + Ιαπωνικά
+const HIDDEN_LANGS = ['hi','ta','te','ml','kn','bn','pa','mr','gu','ko','ja','zh','cn']; // Ινδικές γλώσσες + Κορεατικά + Ιαπωνικά + Κινεζικά
 
 const state = {
   genres: {},
@@ -774,8 +773,12 @@ async function openModal(tmdbId, englishTitle){
       <div class="modal-body">
         ${trailerUrl ? `<a href="${trailerUrl}" target="_blank" rel="noopener" class="trailer-link">▶ Trailer στο YouTube</a>` : ''}
         <div class="modal-share-row">
-          <a href="https://wa.me/?text=${encodedShareText}" target="_blank" rel="noopener" class="share-chip whatsapp">WhatsApp</a>
-          <a href="viber://forward?text=${encodedShareText}" class="share-chip viber">Viber</a>
+          <a href="https://wa.me/?text=${encodedShareText}" target="_blank" rel="noopener" class="share-chip whatsapp" title="WhatsApp">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.6 6.32A7.85 7.85 0 0 0 12.05 4a7.94 7.94 0 0 0-6.87 11.88L4 20l4.24-1.11a7.9 7.9 0 0 0 3.8.97h.01a7.95 7.95 0 0 0 5.55-13.54zM12.05 18.4a6.6 6.6 0 0 1-3.37-.92l-.24-.14-2.51.66.67-2.45-.16-.25a6.58 6.58 0 0 1-1.01-3.5 6.6 6.6 0 1 1 6.62 6.6zm3.62-4.94c-.2-.1-1.17-.58-1.35-.64s-.31-.1-.44.1-.51.64-.62.77-.23.15-.42.05a5.4 5.4 0 0 1-1.6-.99 6 6 0 0 1-1.1-1.37c-.12-.2 0-.3.09-.4.09-.1.2-.24.3-.36a1.3 1.3 0 0 0 .2-.34.38.38 0 0 0-.02-.35c-.05-.1-.44-1.06-.6-1.45-.16-.38-.32-.33-.44-.33h-.38a.72.72 0 0 0-.52.24 2.2 2.2 0 0 0-.68 1.63 3.8 3.8 0 0 0 .8 2.03 8.7 8.7 0 0 0 3.33 2.94c.47.2.83.32 1.12.41a2.7 2.7 0 0 0 1.24.08 2.03 2.03 0 0 0 1.33-.94 1.65 1.65 0 0 0 .11-.94c-.05-.09-.18-.14-.37-.24z"/></svg>
+          </a>
+          <a href="viber://forward?text=${encodedShareText}" class="share-chip viber" title="Viber">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12.4 2C7.5 2 4.2 5 4 9.5c-.1 2.1.3 3.9 1.4 5.5-.2 1.1-.5 3.1-.5 3.1s1.9-.6 2.7-1c.7.2 1.5.4 2.3.4h.1c4.9 0 8.7-3 8.9-7.5.2-4.7-2.4-7.6-6.5-8zm2.9 10.5c-.1.3-.7.6-1 .7-.3.1-.6.1-1 0-.3-.1-.7-.2-1.2-.5-2-1-3.3-3-3.5-3.3-.1-.2-.8-1.1-.8-2 0-1 .5-1.5.7-1.7.2-.2.4-.2.6-.2h.4c.1 0 .3 0 .5.4l.6 1.5c.1.1.1.3 0 .4l-.3.4c-.1.1-.2.3-.1.5.2.3.7 1.1 1.5 1.7.9.7 1.6.9 1.9 1 .2.1.4.1.5-.1l.5-.6c.2-.2.3-.2.5-.1l1.4.7c.2.1.3.1.4.2.1.2.1.7 0 1zm-2.8-6.8c1.9.1 3.4 1.7 3.5 3.6 0 .2-.1.4-.3.4s-.4-.1-.4-.3c-.1-1.5-1.3-2.7-2.8-2.8-.2 0-.4-.2-.3-.4 0-.3.1-.5.3-.5zm.1-1.9c3.1.1 5.5 2.6 5.7 5.7 0 .2-.1.4-.4.4-.2 0-.4-.2-.4-.4-.2-2.7-2.3-4.8-5-4.9-.2 0-.4-.2-.3-.4 0-.2.2-.4.4-.4z"/></svg>
+          </a>
         </div>
         <div class="modal-overview">${details.overview || 'Δεν υπάρχει διαθέσιμη περίληψη.'}</div>
         ${state.mediaType === 'tv' && details.seasons && details.seasons.length ? `
@@ -1006,6 +1009,7 @@ async function runSearch(){
   state.currentPage = 1;
   state.ratingPool = null;
   state.omdbLimitReached = false;
+  state.seenResultIds = new Set();
 
   try{
     let results, totalPages;
@@ -1017,6 +1021,11 @@ async function runSearch(){
     } else {
       ({ results, totalPages } = await fetchRawPage(1));
     }
+    results = results.filter(r => {
+      if(state.seenResultIds.has(r.id)) return false;
+      state.seenResultIds.add(r.id);
+      return true;
+    });
     state.totalPages = totalPages;
     state.lastResults = results;
 
@@ -1056,6 +1065,11 @@ async function loadMore(){
     } else {
       ({ results } = await fetchRawPage(state.currentPage));
     }
+    results = results.filter(r => {
+      if(state.seenResultIds.has(r.id)) return false;
+      state.seenResultIds.add(r.id);
+      return true;
+    });
     state.lastResults = state.lastResults.concat(results);
     renderResultsSkeleton(results, true);
     enrichWithImdb(results);
