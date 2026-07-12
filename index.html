@@ -1154,9 +1154,28 @@ if(filtersToggleBtn && advancedFilters){
 els.goBtn.addEventListener('click', runSearch);
 els.loadMoreBtn.addEventListener('click', loadMore);
 
+async function autoLoadTrendingPreview(){
+  // Δωρεάν προεπισκόπηση: μόνο TMDb δεδομένα, ΚΑΘΟΛΟΥ κλήσεις στο OMDb.
+  // Μόλις ο χρήστης πατήσει "Αναζήτηση", η κανονική ροή (με IMDb) αναλαμβάνει κανονικά.
+  try{
+    const { results } = await fetchRawPage(1);
+    if(!results.length) return;
+    state.currentPage = 1;
+    state.lastResults = results;
+    state.seenResultIds = new Set(results.map(r => r.id));
+    els.results.innerHTML = '';
+    els.resultCount.textContent = `${results.length} αποτελέσματα`;
+    renderResultsSkeleton(results);
+    // Σκόπιμα ΔΕΝ καλούμε enrichWithImdb εδώ.
+  }catch(e){
+    // αν αποτύχει, απλά μένει η αρχική κενή κατάσταση — καμία ζημιά
+  }
+}
+
 applyViewMode();
-setState('empty', 'Επίλεξε φίλτρα και πάτα Αναζήτηση για να ξεκινήσεις.');
 loadGenres();
+autoLoadTrendingPreview();
 </script>
+
 </body>
 </html>
