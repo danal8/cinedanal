@@ -445,7 +445,16 @@
 
 <script>
 const TMDB_API_KEY = '4239ea4fdcba7a007d399f16f3e31207';
-const OMDB_API_KEY = '9030493e';
+const OMDB_API_KEYS = ['d70891e6', 'f6c514c3', 'c1cfafa6', '9030493e', '7fcc7540'];
+let omdbKeyIndex = 0;
+function currentOmdbKey(){ return OMDB_API_KEYS[omdbKeyIndex]; }
+function advanceOmdbKey(){
+  if(omdbKeyIndex < OMDB_API_KEYS.length - 1){
+    omdbKeyIndex++;
+    return true;
+  }
+  return false; // εξαντλήθηκαν όλα τα κλειδιά
+}
 const WATCHMODE_API_KEY = 'wm_tiO3meyIX-Um4VNrt4OR00aG4gob2_BDMDRrU_S9278';
 
 const HIDDEN_LANGS = ['hi','ta','te','ml','kn','bn','pa','mr','gu','ko','ja','zh','cn']; // Ινδικές γλώσσες + Κορεατικά + Ιαπωνικά + Κινεζικά
@@ -673,22 +682,33 @@ async function fetchWatchmodeProviders(tmdbId, mediaType){
   }
 }
 
-async function fetchRatingsByTitleYear(title, year){
-  try{
-    const url = `https://www.omdbapi.com/?t=${encodeURIComponent(title)}${year ? `&y=${year}` : ''}&apikey=${OMDB_API_KEY}`;
-    const res = await fetch(url);
-    const d = await res.json();
-    if(d.Response === 'False'){
-      if(d.Error && /limit/i.test(d.Error)) state.omdbLimitReached = true;
-      return { imdbRating: null, metascore: null };
+async function omdbFetchJson(urlWithoutKey){
+  for(let attempt = 0; attempt < OMDB_API_KEYS.length; attempt++){
+    try{
+      const res = await fetch(`${urlWithoutKey}&apikey=${currentOmdbKey()}`);
+      const d = await res.json();
+      if(d.Response === 'False' && d.Error && /limit/i.test(d.Error)){
+        // αυτό το κλειδί τελείωσε το ημερήσιο όριό του, πέρνα στο επόμενο
+        if(advanceOmdbKey()) continue;
+        state.omdbLimitReached = true; // εξαντλήθηκαν όλα τα κλειδιά
+        return null;
+      }
+      return d;
+    }catch(e){
+      return null;
     }
-    return {
-      imdbRating: d.imdbRating && d.imdbRating !== 'N/A' ? d.imdbRating : null,
-      metascore: d.Metascore && d.Metascore !== 'N/A' ? d.Metascore : null,
-    };
-  }catch(e){
-    return { imdbRating: null, metascore: null };
   }
+  state.omdbLimitReached = true;
+  return null;
+}
+
+async function fetchRatingsByTitleYear(title, year){
+  const d = await omdbFetchJson(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}${year ? `&y=${year}` : ''}`);
+  if(!d || d.Response === 'False') return { imdbRating: null, metascore: null };
+  return {
+    imdbRating: d.imdbRating && d.imdbRating !== 'N/A' ? d.imdbRating : null,
+    metascore: d.Metascore && d.Metascore !== 'N/A' ? d.Metascore : null,
+  };
 }
 
 async function fetchRatings(tmdbId){
@@ -698,11 +718,11 @@ async function fetchRatings(tmdbId){
     const ext = await extRes.json();
     const imdbId = ext.imdb_id;
     if(!imdbId) return { imdbRating: null, metascore: null };
-    const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${OMDB_API_KEY}`);
-    const omdbData = await omdbRes.json();
+    const d = await omdbFetchJson(`https://www.omdbapi.com/?i=${imdbId}`);
+    if(!d || d.Response === 'False') return { imdbRating: null, metascore: null };
     return {
-      imdbRating: omdbData.imdbRating && omdbData.imdbRating !== 'N/A' ? omdbData.imdbRating : null,
-      metascore: omdbData.Metascore && omdbData.Metascore !== 'N/A' ? omdbData.Metascore : null,
+      imdbRating: d.imdbRating && d.imdbRating !== 'N/A' ? d.imdbRating : null,
+      metascore: d.Metascore && d.Metascore !== 'N/A' ? d.Metascore : null,
     };
   }catch(e){
     return { imdbRating: null, metascore: null };
