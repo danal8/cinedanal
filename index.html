@@ -372,6 +372,7 @@ const state = {
   totalPages: 1,
   lastQuery: '',
   lastResults: [],
+  omdbLimitReached: false,
 };
 
 const els = {
@@ -567,7 +568,10 @@ async function fetchRatingsByTitleYear(title, year){
     const url = `https://www.omdbapi.com/?t=${encodeURIComponent(title)}${year ? `&y=${year}` : ''}&apikey=${OMDB_API_KEY}`;
     const res = await fetch(url);
     const d = await res.json();
-    if(d.Response === 'False') return { imdbRating: null, metascore: null };
+    if(d.Response === 'False'){
+      if(d.Error && /limit/i.test(d.Error)) state.omdbLimitReached = true;
+      return { imdbRating: null, metascore: null };
+    }
     return {
       imdbRating: d.imdbRating && d.imdbRating !== 'N/A' ? d.imdbRating : null,
       metascore: d.Metascore && d.Metascore !== 'N/A' ? d.Metascore : null,
@@ -850,6 +854,7 @@ async function runSearch(){
   els.loadMoreRow.style.display = 'none';
   state.currentPage = 1;
   state.ratingPool = null;
+  state.omdbLimitReached = false;
 
   try{
     let results, totalPages;
@@ -865,7 +870,11 @@ async function runSearch(){
     state.lastResults = results;
 
     if(!results.length){
-      setState('empty', 'Δεν βρέθηκαν αποτελέσματα με αυτά τα φίλτρα. Δοκίμασε να χαλαρώσεις κάποιο φίλτρο.');
+      if(state.omdbLimitReached){
+        setState('error', 'Το OMDb (πηγή για IMDb rating/Metascore) έχει φτάσει το ημερήσιο όριο των 1.000 αιτημάτων του δωρεάν πλάνου. Δοκίμασε ξανά αύριο, ή προσωρινά χρησιμοποίησε ταξινόμηση "Δημοφιλία" χωρίς ελάχιστο IMDb rating.');
+      } else {
+        setState('empty', 'Δεν βρέθηκαν αποτελέσματα με αυτά τα φίλτρα. Δοκίμασε να χαλαρώσεις κάποιο φίλτρο.');
+      }
       return;
     }
 
