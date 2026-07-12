@@ -119,8 +119,9 @@
   .view-toggle button.active{background:var(--gold);color:#1a1200;font-weight:600;}
 
   .toggle-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-dim);}
-  .toggle-row input{accent-color:var(--gold);width:15px;height:15px;cursor:pointer;}
+  .toggle-row input{accent-color:var(--gold);width:15px;height:15px;cursor:pointer;flex-shrink:0;}
   .toggle-row label{cursor:pointer;}
+  .panel-toggle{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;max-width:280px;}
 
   .grid{
     display:grid;grid-template-columns:repeat(auto-fill, minmax(190px, 1fr));gap:20px;
@@ -344,12 +345,11 @@
     <button type="button" id="genreFilterBtn" class="genre-filter-btn">Είδη <span id="genreFilterCount"></span> ▾</button>
     <div class="genre-chips-panel hidden" id="genreChipsPanel">
       <div class="genre-chips" id="genreChips"></div>
+      <div class="toggle-row panel-toggle">
+        <input type="checkbox" id="showIndianKorean">
+        <label for="showIndianKorean">Εμφάνιση Ινδικών, Κορεατικών &amp; Ιαπωνικών τίτλων</label>
+      </div>
     </div>
-  </div>
-
-  <div class="toggle-row" style="margin:10px 2px;">
-    <input type="checkbox" id="showIndianKorean">
-    <label for="showIndianKorean">Εμφάνιση Ινδικών, Κορεατικών &amp; Ιαπωνικών τίτλων (κρυμμένα από προεπιλογή)</label>
   </div>
 
   <div class="meta-row">
