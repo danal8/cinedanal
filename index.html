@@ -355,7 +355,8 @@
     <div class="field">
       <label>Ταξινόμηση</label>
       <select id="sortBy">
-        <option value="popularity.desc">Δημοφιλία</option>
+        <option value="trending" selected>Trending τώρα</option>
+        <option value="popularity.desc">Πάντα δημοφιλή</option>
         <option value="imdb_rating">Βαθμολογία IMDb</option>
         <option value="metascore">Metascore</option>
         <option value="primary_release_date.desc">Νεότερες</option>
@@ -841,9 +842,13 @@ async function fetchRawPage(page, overrideSortBy){
   const q = els.query.value.trim();
   const sortMode = overrideSortBy || els.sortBy.value;
   const isRatingSort = sortMode === 'imdb_rating' || sortMode === 'metascore';
+  const isTrending = sortMode === 'trending';
+  const useClientFilters = !!q || isTrending;
   let data;
   if(q){
     data = await tmdbFetch(`/search/${state.mediaType}`, { query: q, page, language: 'en-US' });
+  } else if(isTrending){
+    data = await tmdbFetch(`/trending/${state.mediaType}/week`, { page, language: 'en-US' });
   } else {
     const params = {
       sort_by: isRatingSort ? 'vote_count.desc' : sortMode,
@@ -863,7 +868,7 @@ async function fetchRawPage(page, overrideSortBy){
   }
 
   let results = data.results || [];
-  if(q){
+  if(useClientFilters){
     if(state.selectedGenres.size){
       results = results.filter(r => (r.genre_ids||[]).some(g => state.selectedGenres.has(String(g))));
     }
@@ -882,7 +887,7 @@ async function fetchRawPage(page, overrideSortBy){
   }
   results = filterLanguages(results);
 
-  if(state.mediaType === 'movie' && els.ageLimit.value && q){
+  if(state.mediaType === 'movie' && els.ageLimit.value && useClientFilters){
     const threshold = AGE_ORDER[els.ageLimit.value];
     const certs = await Promise.all(results.map(r => getMovieCertification(r.id)));
     results = results.filter((r, i) => {
@@ -1025,7 +1030,7 @@ function clearFilters(){
   els.dateTo.value = '';
   els.minRating.value = 0;
   els.minRatingVal.textContent = '0.0';
-  els.sortBy.value = 'popularity.desc';
+  els.sortBy.value = 'trending';
   els.ageLimit.value = '';
   updateAgeLimitAvailability();
   els.showIndianKorean.checked = false;
