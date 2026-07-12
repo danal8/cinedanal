@@ -665,6 +665,9 @@ async function enrichWithImdb(items){
 
 async function openModal(tmdbId, englishTitle){
   els.modalOverlay.classList.remove('hidden');
+  if(!(history.state && history.state.cinedanalModal)){
+    history.pushState({ cinedanalModal: true }, '');
+  }
   els.modalContent.innerHTML = '<div class="modal-loading">Φόρτωση...</div>';
   try{
     const details = await tmdbFetch(`/${state.mediaType}/${tmdbId}`, { append_to_response: 'external_ids' });
@@ -761,9 +764,18 @@ async function openModal(tmdbId, englishTitle){
   }
 }
 
-function closeModal(){
+function closeModal(fromPopState){
   els.modalOverlay.classList.add('hidden');
+  if(!fromPopState && history.state && history.state.cinedanalModal){
+    history.back();
+  }
 }
+
+window.addEventListener('popstate', (e) => {
+  if(!els.modalOverlay.classList.contains('hidden')){
+    closeModal(true);
+  }
+});
 
 function setState(mode, msg){
   if(mode === 'loading'){
