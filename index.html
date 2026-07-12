@@ -72,6 +72,18 @@
   .field input[type=text]{min-width:220px;}
   .field.grow{flex:1;}
   .genre-chips{display:flex;flex-wrap:wrap;gap:6px;max-width:420px;}
+  .genre-filter-btn{
+    background:var(--bg-raised);border:1px solid var(--line);color:var(--text);
+    padding:9px 14px;border-radius:7px;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans';
+  }
+  .genre-filter-btn:hover{border-color:var(--gold-dim);}
+  #genreFilterCount{color:var(--gold);font-family:'IBM Plex Mono';}
+  .genre-chips-panel{
+    position:absolute;top:calc(100% + 6px);left:0;z-index:20;background:var(--bg-raised);
+    border:1px solid var(--line);border-radius:10px;padding:14px;max-width:460px;
+    box-shadow:0 12px 30px rgba(0,0,0,0.4);
+  }
+  .genre-chips-panel.hidden{display:none;}
   .chip{
     border:1px solid var(--line);padding:6px 12px;border-radius:999px;font-size:12.5px;
     cursor:pointer;color:var(--text-dim);user-select:none;transition:all .15s;
@@ -114,17 +126,37 @@
     display:flex;flex-direction:column;transition:transform .18s, border-color .18s;cursor:pointer;
   }
   .card:hover{transform:translateY(-3px);border-color:var(--gold-dim);}
+  .rank{display:none;}
+
   .list-mode .card{
-    flex-direction:row;align-items:stretch;transform:none !important;
+    flex-direction:row;align-items:center;transform:none !important;
+    padding:8px 16px 8px 8px;gap:14px;
   }
   .list-mode .card:hover{transform:none !important;border-color:var(--gold-dim);}
-  .list-mode .poster-wrap{width:56px;flex:0 0 56px;aspect-ratio:auto;}
-  .list-mode .card-body{flex-direction:row;align-items:center;gap:16px;padding:10px 16px;flex:1;}
-  .list-mode .card-title{min-width:200px;}
-  .list-mode .card-sub{min-width:50px;}
+  .list-mode .rank{
+    display:flex;align-items:center;justify-content:center;flex:0 0 34px;
+    font-family:'IBM Plex Mono';font-weight:600;color:var(--text-dim);font-size:14px;
+  }
+  .list-mode .poster-wrap{width:50px;flex:0 0 50px;aspect-ratio:2/3;border-radius:6px;overflow:hidden;}
+  .list-mode .badges{display:none;}
+  .list-mode .card-body{
+    flex-direction:row;align-items:center;padding:0;flex:1;gap:0;min-width:0;
+  }
+  .list-mode .card-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+  .list-mode .card-title{
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px;
+  }
+  .list-mode .card-sub{
+    display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-dim);
+  }
   .list-mode .card-type{margin-top:0;}
-  .list-mode .badges{position:static;flex-direction:row;margin-left:auto;}
-  .list-mode .badge{white-space:nowrap;}
+  .list-mode .rating-box{
+    flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;margin-left:14px;
+  }
+  .list-mode .rating-line{display:flex;align-items:center;gap:5px;font-family:'IBM Plex Mono';font-size:13px;white-space:nowrap;}
+  .list-mode .rating-line .star{color:var(--gold);}
+  .list-mode .rating-line.imdb-line{color:var(--gold);font-weight:600;}
+  .list-mode .rating-line.tmdb-line{color:var(--teal);font-size:11.5px;}
 
   .poster-wrap{position:relative;aspect-ratio:2/3;background:#0f1216;}
   .poster-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -140,6 +172,7 @@
   .badge.imdb{background:rgba(232,179,74,0.92);color:#1a1200;}
   .badge.tmdb{background:rgba(90,154,161,0.88);color:#081516;}
   .badge.pending{background:rgba(255,255,255,0.12);color:var(--text-dim);}
+  .rating-box{display:none;}
   .card-body{padding:12px 13px 14px;display:flex;flex-direction:column;gap:5px;flex:1;}
   .card-title{font-family:'Fraunces';font-weight:600;font-size:15.5px;line-height:1.25;}
   .card-sub{font-size:12px;color:var(--text-dim);font-family:'IBM Plex Mono';}
@@ -176,7 +209,8 @@
   .modal-hero{display:flex;gap:18px;padding:22px;border-bottom:1px solid var(--line);}
   .modal-hero img{width:120px;border-radius:8px;flex:0 0 120px;}
   .modal-hero .noimg{width:120px;height:180px;flex:0 0 120px;background:#0f1216;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-family:'Fraunces';font-style:italic;font-size:12px;text-align:center;padding:6px;}
-  .modal-title{font-family:'Fraunces';font-weight:700;font-size:22px;margin:0 0 6px;}
+  .modal-title{font-family:'Fraunces';font-weight:700;font-size:22px;margin:0 0 4px;}
+  .modal-greek-title{font-size:12px;color:var(--text-dim);margin-bottom:8px;font-style:italic;}
   .modal-meta{font-family:'IBM Plex Mono';font-size:12px;color:var(--text-dim);margin-bottom:10px;}
   .modal-badges{display:flex;gap:8px;margin-bottom:10px;}
   .modal-genres{font-size:12px;color:var(--teal);}
@@ -236,9 +270,11 @@
     <button class="go" id="goBtn">Αναζήτηση</button>
   </div>
 
-  <div class="field" style="margin:14px 2px;">
-    <label>Είδη</label>
-    <div class="genre-chips" id="genreChips"></div>
+  <div class="field" style="margin:14px 2px;position:relative;">
+    <button type="button" id="genreFilterBtn" class="genre-filter-btn">Είδη <span id="genreFilterCount"></span> ▾</button>
+    <div class="genre-chips-panel hidden" id="genreChipsPanel">
+      <div class="genre-chips" id="genreChips"></div>
+    </div>
   </div>
 
   <div class="toggle-row" style="margin:10px 2px;">
@@ -298,6 +334,9 @@ const els = {
   sortBy: document.getElementById('sortBy'),
   goBtn: document.getElementById('goBtn'),
   genreChips: document.getElementById('genreChips'),
+  genreFilterBtn: document.getElementById('genreFilterBtn'),
+  genreChipsPanel: document.getElementById('genreChipsPanel'),
+  genreFilterCount: document.getElementById('genreFilterCount'),
   results: document.getElementById('results'),
   resultCount: document.getElementById('resultCount'),
   showIndianKorean: document.getElementById('showIndianKorean'),
@@ -323,6 +362,18 @@ function applyViewMode(){
 }
 els.viewListBtn.addEventListener('click', () => { state.viewMode = 'list'; applyViewMode(); });
 els.viewGridBtn.addEventListener('click', () => { state.viewMode = 'grid'; applyViewMode(); });
+els.genreFilterBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  els.genreChipsPanel.classList.toggle('hidden');
+});
+document.addEventListener('click', (e) => {
+  if(!els.genreChipsPanel.contains(e.target) && e.target !== els.genreFilterBtn){
+    els.genreChipsPanel.classList.add('hidden');
+  }
+});
+function updateGenreFilterCount(){
+  els.genreFilterCount.textContent = state.selectedGenres.size ? `(${state.selectedGenres.size})` : '';
+}
 els.showIndianKorean.addEventListener('change', runSearch);
 els.modalClose.addEventListener('click', closeModal);
 els.modalOverlay.addEventListener('click', (e) => { if(e.target === els.modalOverlay) closeModal(); });
@@ -340,8 +391,9 @@ els.mediaType.addEventListener('change', async () => {
 async function tmdbFetch(path, params={}){
   const url = new URL(`https://api.themoviedb.org/3${path}`);
   url.searchParams.set('api_key', TMDB_API_KEY);
-  url.searchParams.set('language', 'el-GR');
+  url.searchParams.set('language', params.language || 'el-GR');
   for(const [k,v] of Object.entries(params)){
+    if(k === 'language') continue;
     if(v !== '' && v !== undefined && v !== null) url.searchParams.set(k, v);
   }
   const res = await fetch(url);
@@ -371,6 +423,7 @@ function renderGenreChips(){
       if(state.selectedGenres.has(id)) state.selectedGenres.delete(id);
       else state.selectedGenres.add(id);
       renderGenreChips();
+      updateGenreFilterCount();
     };
     els.genreChips.appendChild(chip);
   });
@@ -381,16 +434,20 @@ function posterUrl(path){
 }
 
 function renderResultsSkeleton(items, append=false){
-  if(!append) els.results.innerHTML = '';
+  if(!append) { els.results.innerHTML = ''; state.rankCounter = (state.currentPage - 1) * 20; }
   items.forEach(item => {
+    state.rankCounter = (state.rankCounter || 0) + 1;
+    const rank = state.rankCounter;
     const title = item.title || item.name || 'Άγνωστος τίτλος';
     const date = item.release_date || item.first_air_date || '';
     const year = date ? date.slice(0,4) : '—';
     const poster = posterUrl(item.poster_path);
+    const voteCount = item.vote_count ? formatVoteCount(item.vote_count) : '';
 
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
+      <div class="rank">#${rank}</div>
       <div class="poster-wrap">
         ${poster ? `<img src="${poster}" alt="${title}" loading="lazy">` : `<div class="noimg">Χωρίς αφίσα<br>${title}</div>`}
         <div class="badges">
@@ -399,14 +456,28 @@ function renderResultsSkeleton(items, append=false){
         </div>
       </div>
       <div class="card-body">
-        <div class="card-title">${title}</div>
-        <div class="card-sub">${year}</div>
-        <div class="card-type">${state.mediaType === 'movie' ? 'Ταινία' : 'Σειρά'}</div>
+        <div class="card-main">
+          <div class="card-title">${title}</div>
+          <div class="card-sub">
+            <span>${year}</span>
+            <span class="card-type">${state.mediaType === 'movie' ? 'Ταινία' : 'Σειρά'}</span>
+          </div>
+        </div>
+        <div class="rating-box">
+          <div class="rating-line imdb-line" data-imdb-line="${item.id}"><span class="star">★</span> IMDb …</div>
+          <div class="rating-line tmdb-line">TMDb ${item.vote_average ? item.vote_average.toFixed(1) : '—'}${voteCount ? ` · ${voteCount}` : ''}</div>
+        </div>
       </div>
     `;
-    card.addEventListener('click', () => openModal(item.id));
+    card.addEventListener('click', () => openModal(item.id, title));
     els.results.appendChild(card);
   });
+}
+
+function formatVoteCount(n){
+  if(n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if(n >= 1000) return (n/1000).toFixed(0) + 'K';
+  return String(n);
 }
 
 async function fetchImdbRating(tmdbId){
@@ -429,24 +500,26 @@ async function enrichWithImdb(items){
   for(const item of items){
     fetchImdbRating(item.id).then(rating => {
       const slot = document.querySelector(`[data-imdb-slot="${item.id}"]`);
-      if(!slot) return;
-      if(rating){
-        slot.textContent = `IMDb ${rating}`;
-        slot.classList.remove('pending');
-        slot.classList.add('imdb');
-      } else {
-        slot.textContent = 'IMDb —';
+      const line = document.querySelector(`[data-imdb-line="${item.id}"]`);
+      const text = rating ? `IMDb ${rating}` : 'IMDb —';
+      if(slot){
+        slot.textContent = text;
+        if(rating){ slot.classList.remove('pending'); slot.classList.add('imdb'); }
+      }
+      if(line){
+        line.innerHTML = `<span class="star">★</span> ${text}`;
       }
     });
   }
 }
 
-async function openModal(tmdbId){
+async function openModal(tmdbId, englishTitle){
   els.modalOverlay.classList.remove('hidden');
   els.modalContent.innerHTML = '<div class="modal-loading">Φόρτωση...</div>';
   try{
     const details = await tmdbFetch(`/${state.mediaType}/${tmdbId}`, { append_to_response: 'external_ids' });
-    const title = details.title || details.name;
+    const greekTitle = details.title || details.name;
+    const title = englishTitle || greekTitle;
     const date = details.release_date || details.first_air_date || '';
     const year = date ? date.slice(0,4) : '—';
     const poster = posterUrl(details.poster_path);
@@ -455,12 +528,14 @@ async function openModal(tmdbId){
       ? (details.runtime ? `${details.runtime} λεπτά` : '—')
       : (details.number_of_seasons ? `${details.number_of_seasons} σεζόν, ${details.number_of_episodes || '?'} επεισόδια` : '—');
     const imdbId = details.external_ids && details.external_ids.imdb_id;
+    const showGreekTitle = greekTitle && greekTitle !== title;
 
     els.modalContent.innerHTML = `
       <div class="modal-hero">
         ${poster ? `<img src="${poster}" alt="${title}">` : `<div class="noimg">Χωρίς αφίσα</div>`}
         <div>
           <div class="modal-title">${title}</div>
+          ${showGreekTitle ? `<div class="modal-greek-title">Ελληνικός τίτλος: ${greekTitle}</div>` : ''}
           <div class="modal-meta">${year} · ${runtime}</div>
           <div class="modal-badges">
             <span class="badge tmdb">★ TMDb ${details.vote_average ? details.vote_average.toFixed(1) : '—'}</span>
@@ -517,12 +592,13 @@ async function fetchPage(page){
   const q = els.query.value.trim();
   let data;
   if(q){
-    data = await tmdbFetch(`/search/${state.mediaType}`, { query: q, page });
+    data = await tmdbFetch(`/search/${state.mediaType}`, { query: q, page, language: 'en-US' });
   } else {
     const params = {
       sort_by: els.sortBy.value,
       page,
       'vote_count.gte': 20,
+      language: 'en-US',
     };
     if(state.selectedGenres.size) params.with_genres = Array.from(state.selectedGenres).join(',');
     const dateField = state.mediaType === 'movie' ? 'primary_release_date' : 'first_air_date';
