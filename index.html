@@ -139,9 +139,9 @@
   .card:hover{transform:translateY(-3px);border-color:var(--gold-dim);}
   .rank{display:none;}
   .stremio-btn{
-    display:none;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 30px;
-    background:rgba(90,154,161,0.15);border:1px solid rgba(90,154,161,0.4);border-radius:50%;
-    color:var(--teal);text-decoration:none;font-size:12px;margin-left:8px;
+    display:none;align-items:center;justify-content:center;gap:5px;height:30px;padding:0 12px;
+    background:rgba(90,154,161,0.15);border:1px solid rgba(90,154,161,0.4);border-radius:16px;
+    color:var(--teal);text-decoration:none;font-size:11.5px;font-weight:600;margin-left:8px;white-space:nowrap;
   }
   .stremio-btn:hover{background:rgba(90,154,161,0.3);}
   .list-mode .stremio-btn{display:flex;}
@@ -238,7 +238,7 @@
   .modal-genres{font-size:12px;color:var(--teal);}
   .modal-providers{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;}
   .providers-label{font-size:10.5px;color:var(--text-dim);margin-right:2px;}
-  .provider-logo{width:28px;height:28px;border-radius:6px;}
+  .provider-logo{width:38px;height:38px;border-radius:8px;background:#fff;padding:2px;object-fit:contain;}
   .modal-body{padding:20px 22px;}
   .modal-overview{font-size:14px;line-height:1.6;color:var(--text);}
   .modal-loading{padding:40px;text-align:center;color:var(--text-dim);}
@@ -317,6 +317,7 @@
       min-width:0;width:100%;padding:8px 6px;font-size:12px;
     }
 
+    #advancedFilters{display:none;}
     #advancedFilters.open{
       display:flex;flex-wrap:wrap;gap:8px 6px;width:100%;
       background:var(--bg-raised);border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:2px;
@@ -335,7 +336,8 @@
     .list-mode .poster-wrap{width:38px;flex:0 0 38px;}
     .list-mode .rating-box{margin-left:4px;}
     .list-mode .rating-line{font-size:10.5px;}
-    .stremio-btn{width:26px;height:26px;flex:0 0 26px;margin-left:4px;}
+    .stremio-btn{height:26px;padding:0 8px;margin-left:4px;font-size:10px;}
+    .stremio-btn-text{display:none;}
     .modal-hero{flex-direction:column;}
     .modal-hero img, .modal-hero .noimg{width:100%;flex:none;height:auto;aspect-ratio:2/3;}
   }
@@ -364,7 +366,10 @@
         <option value="tv">Σειρές</option>
       </select>
     </div>
-    <button type="button" id="filtersToggleBtn" class="filters-toggle-btn">⚙ Φίλτρα</button>
+    <button type="button" id="filtersToggleBtn" class="filters-toggle-btn">
+      <svg class="filter-icon" viewBox="0 0 24 24" width="15" height="15"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="18" x2="14" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Φίλτρα
+    </button>
     <div class="advanced-filters" id="advancedFilters">
       <div class="field">
         <label for="yearFrom">Από έτος</label>
@@ -629,7 +634,7 @@ function renderResultsSkeleton(items, append=false){
             <span class="card-type">${state.mediaType === 'movie' ? 'Ταινία' : 'Σειρά'}</span>
           </div>
         </div>
-        <a href="${stremioUrl}" class="stremio-btn" title="Άνοιγμα στο Stremio" onclick="event.stopPropagation()">▶</a>
+        <a href="${stremioUrl}" class="stremio-btn" title="Άνοιγμα στο Stremio" onclick="event.stopPropagation()">▶ <span class="stremio-btn-text">Stremio</span></a>
         <div class="rating-box">
           <div class="rating-line imdb-line" data-imdb-line="${item.id}"><span class="star">★</span> ${imdbText}</div>
           <div class="rating-line meta-line" data-meta-slot="${item.id}">${metaText}</div>
@@ -761,7 +766,7 @@ async function openModal(tmdbId, englishTitle){
           ${streamProviders.length ? `
             <div class="modal-providers">
               <span class="providers-label">Διαθέσιμο σε (GR):</span>
-              ${streamProviders.map(p => `<img src="https://image.tmdb.org/t/p/w45${p.logo_path}" alt="${p.provider_name}" title="${p.provider_name}" class="provider-logo">`).join('')}
+              ${streamProviders.map(p => `<img src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt="${p.provider_name}" title="${p.provider_name}" class="provider-logo">`).join('')}
             </div>
           ` : ''}
         </div>
