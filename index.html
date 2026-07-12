@@ -267,10 +267,30 @@
     h1{font-size:26px;}
     .tagline{font-size:12.5px;}
     header{margin-bottom:18px;padding-bottom:14px;}
-    .controls{padding:14px;gap:10px;}
+    .controls{padding:14px;gap:8px 6px;}
     .field input[type=text]{min-width:0;width:100%;}
     .field.grow{flex:1 1 100%;}
     .field{flex:1 1 auto;}
+    .controls .field:nth-child(2),
+    .controls .field:nth-child(3),
+    .controls .field:nth-child(4),
+    .controls .field:nth-child(5),
+    .controls .field:nth-child(6),
+    .controls #ageLimitField{
+      flex:1 1 30%;
+      min-width:0;
+    }
+    .controls .field:nth-child(2) select,
+    .controls .field:nth-child(3) input,
+    .controls .field:nth-child(4) input,
+    .controls .field:nth-child(6) select,
+    .controls #ageLimitField select{
+      min-width:0;width:100%;padding:8px 6px;font-size:12px;
+    }
+    .controls .field label{font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .controls .range-row{gap:4px;}
+    .controls .range-row input[type=range]{width:100%;min-width:0;}
+    .controls .range-val{font-size:11px;min-width:22px;}
     button.go, button.clear{padding:10px 16px;font-size:13px;}
     .list-mode .card-title{font-size:13.5px;}
     .rank{flex:0 0 26px !important;font-size:12px;}
