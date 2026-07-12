@@ -229,6 +229,9 @@
   .modal-meta{font-family:'IBM Plex Mono';font-size:12px;color:var(--text-dim);margin-bottom:10px;}
   .modal-badges{display:flex;gap:8px;margin-bottom:10px;}
   .modal-genres{font-size:12px;color:var(--teal);}
+  .modal-credits{margin-top:8px;display:flex;flex-direction:column;gap:3px;}
+  .modal-credits div{font-size:11.5px;color:var(--text-dim);}
+  .credits-label{color:var(--text);font-weight:600;}
   .modal-providers{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;}
   .providers-label{font-size:10.5px;color:var(--text-dim);margin-right:2px;}
   .provider-logo{width:38px;height:38px;border-radius:8px;background:#fff;padding:2px;object-fit:contain;}
@@ -760,13 +763,26 @@ async function openModal(tmdbId, englishTitle){
   }
   els.modalContent.innerHTML = '<div class="modal-loading">Φόρτωση...</div>';
   try{
-    const details = await tmdbFetch(`/${state.mediaType}/${tmdbId}`, { append_to_response: 'external_ids' });
+    const details = await tmdbFetch(`/${state.mediaType}/${tmdbId}`, { append_to_response: 'external_ids,credits' });
     const greekTitle = details.title || details.name;
     const title = englishTitle || greekTitle;
     const date = details.release_date || details.first_air_date || '';
     const year = date ? date.slice(0,4) : '—';
     const poster = posterUrl(details.poster_path);
     const genres = (details.genres || []).map(g => g.name).join(' · ');
+
+    const credits = details.credits || {};
+    const director = state.mediaType === 'movie'
+      ? (credits.crew || []).find(c => c.job === 'Director')
+      : null;
+    const creators = state.mediaType === 'tv' ? (details.created_by || []) : [];
+    const directorNames = director ? director.name : (creators.length ? creators.map(c => c.name).join(', ') : null);
+    const topCast = (credits.cast || []).slice(0, 5).map(c => c.name).join(', ');
+
+    const countries = (details.production_countries || []).map(c => c.name);
+    const langCode = details.original_language;
+    const LANG_NAMES = { en:'Αγγλικά', el:'Ελληνικά', fr:'Γαλλικά', de:'Γερμανικά', es:'Ισπανικά', it:'Ιταλικά', ja:'Ιαπωνικά', ko:'Κορεατικά', zh:'Κινεζικά', ru:'Ρωσικά', hi:'Χίντι', pt:'Πορτογαλικά', tr:'Τουρκικά', sv:'Σουηδικά', da:'Δανικά', no:'Νορβηγικά', pl:'Πολωνικά', nl:'Ολλανδικά' };
+    const langName = LANG_NAMES[langCode] || langCode;
     const runtime = state.mediaType === 'movie'
       ? (details.runtime ? `${details.runtime} λεπτά` : '—')
       : (details.number_of_seasons ? `${details.number_of_seasons} σεζόν, ${details.number_of_episodes || '?'} επεισόδια` : '—');
@@ -815,6 +831,12 @@ async function openModal(tmdbId, englishTitle){
             ${certification ? `<span class="badge age">${certification}</span>` : ''}
           </div>
           <div class="modal-genres">${genres || ''}</div>
+          <div class="modal-credits">
+            ${directorNames ? `<div><span class="credits-label">${state.mediaType === 'movie' ? 'Σκηνοθεσία' : 'Δημιουργία'}:</span> ${directorNames}</div>` : ''}
+            ${topCast ? `<div><span class="credits-label">Πρωταγωνιστούν:</span> ${topCast}</div>` : ''}
+            ${countries.length ? `<div><span class="credits-label">Χώρα:</span> ${countries.join(', ')}</div>` : ''}
+            ${langName ? `<div><span class="credits-label">Γλώσσα:</span> ${langName}</div>` : ''}
+          </div>
           ${streamProviders.length ? `
             <div class="modal-providers">
               <span class="providers-label">Διαθέσιμο σε (GR):</span>
