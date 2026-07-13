@@ -293,6 +293,15 @@
 
   footer{margin-top:50px;color:var(--text-dim);font-size:11.5px;text-align:center;font-family:'IBM Plex Mono';}
 
+  /* --- Πλοήγηση με τηλεκοντρόλ / πληκτρολόγιο (Android TV κ.λπ.) --- */
+  :focus{outline:3px solid var(--gold);outline-offset:2px;border-radius:6px;}
+  :focus:not(:focus-visible){outline:3px solid var(--gold);} /* θέλουμε πάντα ορατό focus, ακόμα και σε κλικ, για συνέπεια σε TV */
+  .card:focus{transform:translateY(-3px);border-color:var(--gold);outline-offset:-2px;}
+  .list-mode .card:focus{transform:none !important;}
+  .chip:focus{outline-offset:1px;}
+  .rec-card:focus{outline-offset:2px;}
+  .rec-card:focus img{outline:2px solid var(--gold);}
+
   .filters-toggle-btn{
     display:none;
     background:var(--bg-raised);border:1px solid var(--line);color:var(--text);
@@ -601,6 +610,8 @@ function renderGenreChips(){
     const chip = document.createElement('div');
     chip.className = 'chip' + (state.selectedGenres.has(id) ? ' active' : '');
     chip.textContent = name;
+    chip.setAttribute('tabindex', '0');
+    chip.setAttribute('role', 'button');
     chip.onclick = () => {
       if(state.selectedGenres.has(id)) state.selectedGenres.delete(id);
       else state.selectedGenres.add(id);
@@ -632,6 +643,8 @@ function renderResultsSkeleton(items, append=false){
 
     const card = document.createElement('div');
     card.className = 'card';
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'button');
     const stremioUrl = `stremio:///search?search=${encodeURIComponent(title)}`;
     card.innerHTML = `
       <div class="rank">#${rank}</div>
@@ -874,7 +887,7 @@ async function openModal(tmdbId, englishTitle){
           <div class="modal-recs-title">Παρόμοιοι τίτλοι</div>
           <div class="modal-recs-row">
             ${recs.map(r => `
-              <div class="rec-card" data-rec-id="${r.id}" data-rec-title="${(r.title || r.name || '').replace(/"/g, '&quot;')}">
+              <div class="rec-card" tabindex="0" role="button" data-rec-id="${r.id}" data-rec-title="${(r.title || r.name || '').replace(/"/g, '&quot;')}">
                 ${r.poster_path ? `<img src="${posterUrl(r.poster_path)}" alt="${r.title || r.name}" loading="lazy">` : `<div class="rec-noimg">${r.title || r.name || ''}</div>`}
                 <div class="rec-title">${r.title || r.name || ''}</div>
               </div>
@@ -1228,6 +1241,93 @@ async function autoLoadTrendingPreview(){
 applyViewMode();
 loadGenres();
 autoLoadTrendingPreview();
+
+// ============================================================
+// Πλοήγηση με τηλεκοντρόλ / πληκτρολόγιο (π.χ. Android TV)
+// Γενικό σύστημα: βρίσκει το πλησιέστερο εστιάσιμο στοιχείο προς
+// την κατεύθυνση του βέλους που πατήθηκε, με βάση τη θέση στην οθόνη.
+// ============================================================
+
+function isElementVisible(el){
+  if(el.disabled) return false;
+  const style = getComputedStyle(el);
+  if(style.display === 'none' || style.visibility === 'hidden') return false;
+  const rect = el.getBoundingClientRect();
+  if(rect.width === 0 && rect.height === 0) return false;
+  return true;
+}
+
+function getFocusableElements(){
+  const modalOpen = !els.modalOverlay.classList.contains('hidden');
+  const scope = modalOpen ? els.modalOverlay : document;
+  return Array.from(scope.querySelectorAll('a[href], button:not(:disabled), input:not([type=hidden]), select, [tabindex="0"]'))
+    .filter(el => {
+      if(modalOpen && !el.closest('.modal') && el !== els.modalOverlay) return false;
+      // κρυμμένο genre panel: μην εστιάζεις μέσα του αν είναι κλειστό
+      const chipsPanel = document.getElementById('genreChipsPanel');
+      if(chipsPanel && chipsPanel.classList.contains('hidden') && chipsPanel.contains(el)) return false;
+      // κρυμμένο advanced filters panel σε mobile: μην εστιάζεις μέσα του αν είναι κλειστό
+      const advFilters = document.getElementById('advancedFilters');
+      if(advFilters && !advFilters.classList.contains('open') && getComputedStyle(advFilters).display === 'none' && advFilters.contains(el)) return false;
+      return isElementVisible(el);
+    });
+}
+
+function moveFocus(direction){
+  const current = document.activeElement;
+  const focusables = getFocusableElements();
+  if(!focusables.length) return;
+  if(!current || current === document.body || !focusables.includes(current)){
+    focusables[0].focus();
+    return;
+  }
+  const curRect = current.getBoundingClientRect();
+  const curCenter = { x: curRect.left + curRect.width / 2, y: curRect.top + curRect.height / 2 };
+  let best = null;
+  let bestScore = Infinity;
+  for(const el of focusables){
+    if(el === current) continue;
+    const r = el.getBoundingClientRect();
+    const center = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    const dx = center.x - curCenter.x;
+    const dy = center.y - curCenter.y;
+    let primary, secondary, valid;
+    if(direction === 'right'){ valid = dx > 4; primary = dx; secondary = Math.abs(dy); }
+    else if(direction === 'left'){ valid = dx < -4; primary = -dx; secondary = Math.abs(dy); }
+    else if(direction === 'down'){ valid = dy > 4; primary = dy; secondary = Math.abs(dx); }
+    else if(direction === 'up'){ valid = dy < -4; primary = -dy; secondary = Math.abs(dx); }
+    if(!valid) continue;
+    const score = primary + secondary * 2.2;
+    if(score < bestScore){ bestScore = score; best = el; }
+  }
+  if(best){
+    best.focus();
+    best.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  const dirMap = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+  const active = document.activeElement;
+  const tag = active ? active.tagName : '';
+
+  if(dirMap[e.key]){
+    // Άσε το native πλοήγηση μέσα σε select/range/text ώστε να μη «κλέβουμε» τα βέλη τους
+    if(tag === 'SELECT') return;
+    if(tag === 'INPUT' && active.type === 'range') return;
+    if(tag === 'INPUT' && (active.type === 'text' || active.type === 'number') && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
+    e.preventDefault();
+    moveFocus(dirMap[e.key]);
+    return;
+  }
+
+  if(e.key === 'Enter' || e.key === ' '){
+    if(active && (active.classList.contains('card') || active.classList.contains('chip') || active.classList.contains('rec-card'))){
+      e.preventDefault();
+      active.click();
+    }
+  }
+});
 </script>
 
 </body>
