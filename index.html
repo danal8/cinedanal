@@ -462,10 +462,12 @@
 <footer>CineDanal — δεδομένα από TMDb &amp; OMDb (IMDb ratings). Προσωπικό εργαλείο, όχι επίσημη εφαρμογή.</footer>
 
 <script>
+// Αφαιρούμε εντελώς οποιοδήποτε service worker είχε καταχωρηθεί παλιότερα,
+// ώστε να μην "κολλάει" ποτέ σε παλιά έκδοση. Δεν αγγίζει τίποτα άλλο (δεδομένα, κλειδιά, κλπ).
 if('serviceWorker' in navigator){
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  });
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister());
+  }).catch(() => {});
 }
 
 const TMDB_API_KEY = '4239ea4fdcba7a007d399f16f3e31207';
@@ -564,6 +566,7 @@ els.mediaType.addEventListener('change', async () => {
   state.selectedGenres.clear();
   updateAgeLimitAvailability();
   await loadGenres();
+  runSearch(); // ξανατρέχει αυτόματα την αναζήτηση με τον νέο τύπο, χωρίς να χρειάζεται επιπλέον κλικ
 });
 
 function updateAgeLimitAvailability(){
