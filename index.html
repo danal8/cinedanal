@@ -288,6 +288,12 @@
     margin-bottom:16px;margin-right:8px;
   }
   .trailer-link:hover{background:#f0c165;}
+  .netflix-link{
+    display:inline-flex;align-items:center;gap:6px;background:#E50914;color:#fff;
+    padding:9px 18px;border-radius:7px;font-weight:600;font-size:13px;text-decoration:none;
+    margin-bottom:16px;margin-right:8px;
+  }
+  .netflix-link:hover{background:#c40812;}
   .modal-share-row{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
   .share-chip{
     display:inline-flex;align-items:center;justify-content:center;width:52px;height:52px;
@@ -859,6 +865,11 @@ async function openModal(tmdbId, englishTitle){
     const shareText = `${title} (${year})${imdbUrl ? ' — ' + imdbUrl : ''}`;
     const encodedShareText = encodeURIComponent(shareText);
     const certification = state.mediaType === 'movie' ? await getMovieCertification(tmdbId) : null;
+    const hasNetflix = streamProviders.some(p => {
+      const name = providerSource === 'watchmode' ? p : (p.provider_name || '');
+      return /netflix/i.test(name);
+    });
+    const netflixUrl = `https://www.netflix.com/search?q=${encodeURIComponent(title)}`;
 
     els.modalContent.innerHTML = `
       <div class="modal-hero">
@@ -893,6 +904,7 @@ async function openModal(tmdbId, englishTitle){
       </div>
       <div class="modal-body">
         ${trailerUrl ? `<a href="${trailerUrl}" target="_blank" rel="noopener" class="trailer-link">▶ Trailer στο YouTube</a>` : ''}
+        ${hasNetflix ? `<a href="${netflixUrl}" target="_blank" rel="noopener" class="netflix-link">▶ Netflix</a>` : ''}
         <div class="modal-share-row">
           <a href="https://wa.me/?text=${encodedShareText}" target="_blank" rel="noopener" class="share-chip whatsapp" title="WhatsApp">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.6 6.32A7.85 7.85 0 0 0 12.05 4a7.94 7.94 0 0 0-6.87 11.88L4 20l4.24-1.11a7.9 7.9 0 0 0 3.8.97h.01a7.95 7.95 0 0 0 5.55-13.54zM12.05 18.4a6.6 6.6 0 0 1-3.37-.92l-.24-.14-2.51.66.67-2.45-.16-.25a6.58 6.58 0 0 1-1.01-3.5 6.6 6.6 0 1 1 6.62 6.6zm3.62-4.94c-.2-.1-1.17-.58-1.35-.64s-.31-.1-.44.1-.51.64-.62.77-.23.15-.42.05a5.4 5.4 0 0 1-1.6-.99 6 6 0 0 1-1.1-1.37c-.12-.2 0-.3.09-.4.09-.1.2-.24.3-.36a1.3 1.3 0 0 0 .2-.34.38.38 0 0 0-.02-.35c-.05-.1-.44-1.06-.6-1.45-.16-.38-.32-.33-.44-.33h-.38a.72.72 0 0 0-.52.24 2.2 2.2 0 0 0-.68 1.63 3.8 3.8 0 0 0 .8 2.03 8.7 8.7 0 0 0 3.33 2.94c.47.2.83.32 1.12.41a2.7 2.7 0 0 0 1.24.08 2.03 2.03 0 0 0 1.33-.94 1.65 1.65 0 0 0 .11-.94c-.05-.09-.18-.14-.37-.24z"/></svg>
