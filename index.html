@@ -232,6 +232,10 @@
   .modal-title{font-family:'Fraunces';font-weight:700;font-size:25px;margin:0 0 4px;}
   .modal-greek-title{font-size:12px;color:var(--text-dim);margin-bottom:8px;font-style:italic;}
   .modal-meta{font-family:'IBM Plex Mono';font-size:12px;color:var(--text-dim);margin-bottom:10px;}
+  .modal-upcoming{
+    display:inline-block;background:rgba(232,179,74,0.15);border:1px solid rgba(232,179,74,0.4);
+    color:var(--gold);font-size:12px;font-weight:600;padding:4px 10px;border-radius:6px;margin-bottom:10px;
+  }
   .modal-badges{display:flex;gap:8px;margin-bottom:10px;}
   .modal-genres{font-size:12px;color:var(--teal);}
   .modal-credits{margin-top:8px;display:flex;flex-direction:column;gap:3px;}
@@ -800,6 +804,13 @@ async function openModal(tmdbId, englishTitle){
     const title = englishTitle || greekTitle;
     const date = details.release_date || details.first_air_date || '';
     const year = date ? date.slice(0,4) : '—';
+    const isUpcoming = date && date > new Date().toISOString().slice(0,10);
+    const fmtFullDate = (d) => {
+      if(!d) return '';
+      const [y,m,dd] = d.split('-');
+      const MONTHS = ['Ιαν','Φεβ','Μαρ','Απρ','Μάι','Ιουν','Ιουλ','Αυγ','Σεπ','Οκτ','Νοε','Δεκ'];
+      return `${parseInt(dd)} ${MONTHS[parseInt(m)-1]} ${y}`;
+    };
     const poster = posterUrl(details.poster_path);
     const genres = (details.genres || []).map(g => g.name).join(' · ');
 
@@ -856,6 +867,7 @@ async function openModal(tmdbId, englishTitle){
           <div class="modal-title">${title}</div>
           ${showGreekTitle ? `<div class="modal-greek-title">Ελληνικός τίτλος: ${greekTitle}</div>` : ''}
           <div class="modal-meta">${year} · ${runtime}</div>
+          ${isUpcoming ? `<div class="modal-upcoming">🗓️ Κυκλοφορεί: ${fmtFullDate(date)}</div>` : ''}
           <div class="modal-badges">
             <span class="badge pending" id="modalImdbBadge">IMDb…</span>
             <span class="badge meta" id="modalMetaBadge"></span>
