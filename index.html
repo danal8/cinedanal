@@ -879,9 +879,10 @@ async function fetchRatingsByTitleYear(title, year){
   };
 }
 
-async function fetchRatings(tmdbId){
+async function fetchRatings(tmdbId, mediaTypeOverride){
   try{
-    const extUrl = `https://api.themoviedb.org/3/${state.mediaType}/${tmdbId}/external_ids?api_key=${TMDB_API_KEY}`;
+    const mt = mediaTypeOverride || state.mediaType;
+    const extUrl = `https://api.themoviedb.org/3/${mt}/${tmdbId}/external_ids?api_key=${TMDB_API_KEY}`;
     const extRes = await fetch(extUrl);
     const ext = await extRes.json();
     const imdbId = ext.imdb_id;
@@ -902,7 +903,14 @@ async function enrichWithImdb(items){
     if(item._imdbRating !== undefined) continue; // ήδη φορτωμένο (ταξινόμηση IMDb/Metascore)
     const t = item.title || item.name || '';
     const y = (item.release_date || item.first_air_date || '').slice(0,4);
-    fetchRatingsByTitleYear(t, y).then(({ imdbRating, metascore }) => {
+    const itemMediaType = item._mediaTypeOverride || state.mediaType;
+    fetchRatingsByTitleYear(t, y).then(async (result) => {
+      if(!result.imdbRating){
+        // fallback: πιο ακριβής αναζήτηση μέσω πραγματικού IMDb ID (πιο αργό, μόνο όταν χρειάζεται)
+        const fallback = await fetchRatings(item.id, itemMediaType);
+        if(fallback.imdbRating || fallback.metascore) result = fallback;
+      }
+      const { imdbRating, metascore } = result;
       const slot = document.querySelector(`[data-imdb-slot="${item.id}"]`);
       const line = document.querySelector(`[data-imdb-line="${item.id}"]`);
       const metaSlot = document.querySelector(`[data-meta-slot="${item.id}"]`);
