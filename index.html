@@ -175,6 +175,11 @@
   .toggle-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-dim);}
   .toggle-row input{accent-color:var(--gold);width:15px;height:15px;cursor:pointer;flex-shrink:0;}
   .toggle-row label{cursor:pointer;}
+  .panel-toggle label{
+    display:inline !important;text-transform:none !important;font-size:12.5px !important;
+    color:var(--text-dim) !important;margin-bottom:0 !important;white-space:normal !important;
+    overflow:visible !important;text-overflow:clip !important;width:auto !important;letter-spacing:normal !important;
+  }
   .panel-toggle{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
 
   .active-filters-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
@@ -413,9 +418,10 @@
       background:var(--bg-raised);border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:2px;
     }
     #advancedFilters .field{flex:1 1 45%;min-width:0;}
-    #advancedFilters .field input,
+    #advancedFilters .field input:not([type=checkbox]),
     #advancedFilters .field select,
     #advancedFilters .field .genre-filter-btn{min-width:0;width:100%;padding:8px 6px;font-size:12px;}
+    #advancedFilters .field input[type=checkbox]{width:15px;height:15px;flex-shrink:0;}
 
     .controls > .field > label,
     #advancedFilters > .field > label{font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
