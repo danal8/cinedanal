@@ -470,7 +470,6 @@
       <label>Ταξινόμηση</label>
       <select id="sortBy">
         <option value="trending" selected>Trending τώρα</option>
-        <option value="popularity.desc">Πάντα δημοφιλή</option>
         <option value="imdb_rating">Βαθμολογία IMDb</option>
         <option value="metascore">Metascore</option>
         <option value="primary_release_date.desc">Νεότερες</option>
@@ -1317,10 +1316,24 @@ async function fetchEnrichedPool(){
   const q = els.query.value.trim();
   const pagesToFetch = q ? [1, 2, 3] : Array.from({length: RATING_POOL_PAGES}, (_, i) => i + 1);
 
-  // Όποτε υπάρχει ελάχιστο rating (ή ταξινόμηση IMDb/Metascore) θέλουμε σταθερή δεξαμενή
-  // γνωστών τίτλων (vote_count.desc) — όχι "Trending τώρα", που δείχνει μόνο τρέχουσα δημοφιλία
-  // και αποκλείει διαχρονικές ταινίες σε παλιότερα φίλτρα ετών.
-  const poolSortOverride = (isRatingSort || minRating > 0) ? 'vote_count.desc' : undefined;
+  const hasYearFilter = !!(els.dateFrom.value || els.dateTo.value);
+
+  // Λογική δεξαμενής:
+  // - Ταξινόμηση IMDb/Metascore: πάντα σταθερή δεξαμενή γνωστών τίτλων (vote_count.desc),
+  //   απαραίτητο για σωστή global ταξινόμηση.
+  // - Trending τώρα + ελάχιστο rating, ΧΩΡΙΣ φίλτρο ετών: σεβόμαστε το Trending κανονικά,
+  //   απλά φιλτράρουμε τα αποτελέσματά του με το ελάχιστο rating.
+  // - Trending τώρα + φίλτρο ετών: το Trending δεν καλύπτει παλιές χρονιές, οπότε πέφτουμε
+  //   πίσω σε vote_count.desc ώστε να βρίσκει πραγματικά αποτελέσματα.
+  // - Νεότερες: σεβόμαστε την ταξινόμηση όπως είναι (ήδη υποστηρίζει φίλτρο ετών σωστά).
+  let poolSortOverride;
+  if(isRatingSort){
+    poolSortOverride = 'vote_count.desc';
+  } else if(minRating > 0 && sortMode === 'trending' && hasYearFilter){
+    poolSortOverride = 'vote_count.desc';
+  } else {
+    poolSortOverride = undefined; // σεβόμαστε την επιλεγμένη ταξινόμηση (Trending / Νεότερες)
+  }
   const pageResults = await Promise.all(pagesToFetch.map(p => fetchRawPage(p, poolSortOverride).catch(() => ({ results: [] }))));
   let pool = [];
   const seenIds = new Set();
