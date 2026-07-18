@@ -126,7 +126,7 @@
   .field.grow{flex:1;}
   .field-note{display:block;font-size:10.5px;color:var(--text-dim);margin-top:4px;max-width:150px;}
   select:disabled{opacity:.4;cursor:not-allowed;}
-  .genre-chips{display:flex;flex-wrap:wrap;gap:6px;max-width:420px;}
+  .genre-chips{display:flex;flex-wrap:wrap;gap:6px;max-width:min(600px, 88vw);}
   .genre-filter-btn{
     background:var(--bg-raised);border:1px solid var(--line);color:var(--text);
     padding:9px 14px;border-radius:7px;font-size:13px;cursor:pointer;font-family:'IBM Plex Sans';
@@ -135,7 +135,8 @@
   #genreFilterCount{color:var(--gold);font-family:'IBM Plex Mono';}
   .genre-chips-panel{
     position:absolute;top:calc(100% + 6px);left:0;z-index:20;background:var(--bg-raised);
-    border:1px solid var(--line);border-radius:10px;padding:14px;max-width:460px;
+    border:1px solid var(--line);border-radius:10px;padding:14px;max-width:min(640px, 92vw);
+    max-height:min(70vh, 520px);overflow-y:auto;
     box-shadow:0 12px 30px rgba(0,0,0,0.4);
   }
   .genre-chips-panel.hidden{display:none;}
@@ -174,7 +175,7 @@
   .toggle-row{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-dim);}
   .toggle-row input{accent-color:var(--gold);width:15px;height:15px;cursor:pointer;flex-shrink:0;}
   .toggle-row label{cursor:pointer;}
-  .panel-toggle{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;max-width:280px;}
+  .panel-toggle{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
 
   .grid{
     display:grid;grid-template-columns:repeat(auto-fill, minmax(190px, 1fr));gap:20px;
@@ -573,6 +574,7 @@ const state = {
   watchlistItems: [], // [{id, mediaType, title, poster_path, date, vote_average}]
   watchlistIds: new Set(), // "movie:123" / "tv:456"
   viewingWatchlist: false,
+  langFilter: null, // π.χ. 'ko' για ρητό φίλτρο Κορεάτικων
 };
 
 const SUPA_URL = 'https://odtbtugzilxsfqxlpofq.supabase.co';
@@ -744,9 +746,12 @@ async function loadGenres(){
   }
 }
 
+const EXCLUDED_GENRE_NAMES = ['Επ. Φαντασίας', 'τηλεοπτική ταινία'];
+
 function renderGenreChips(){
   els.genreChips.innerHTML = '';
   Object.entries(state.genres).forEach(([id, name]) => {
+    if(EXCLUDED_GENRE_NAMES.includes(name)) return;
     const chip = document.createElement('div');
     chip.className = 'chip' + (state.selectedGenres.has(id) ? ' active' : '');
     chip.textContent = name;
@@ -760,6 +765,16 @@ function renderGenreChips(){
     };
     els.genreChips.appendChild(chip);
   });
+  const koChip = document.createElement('div');
+  koChip.className = 'chip' + (state.langFilter === 'ko' ? ' active' : '');
+  koChip.textContent = 'Κορεάτικα';
+  koChip.setAttribute('tabindex', '0');
+  koChip.setAttribute('role', 'button');
+  koChip.onclick = () => {
+    state.langFilter = state.langFilter === 'ko' ? null : 'ko';
+    renderGenreChips();
+  };
+  els.genreChips.appendChild(koChip);
 }
 
 function posterUrl(path){
@@ -1167,6 +1182,7 @@ function setState(mode, msg){
 }
 
 function filterLanguages(results){
+  if(state.langFilter) return results.filter(r => r.original_language === state.langFilter);
   if(els.showIndianKorean.checked) return results;
   return results.filter(r => !HIDDEN_LANGS.includes(r.original_language));
 }
@@ -1190,6 +1206,7 @@ async function fetchRawPage(page, overrideSortBy){
       language: 'en-US',
     };
     if(state.selectedGenres.size) params.with_genres = Array.from(state.selectedGenres).join(',');
+    if(state.langFilter) params.with_original_language = state.langFilter;
     const dateField = state.mediaType === 'movie' ? 'primary_release_date' : 'first_air_date';
     if(els.dateFrom.value) params[`${dateField}.gte`] = `${els.dateFrom.value}-01-01`;
     if(els.dateTo.value) params[`${dateField}.lte`] = `${els.dateTo.value}-12-31`;
@@ -1234,7 +1251,7 @@ async function fetchRawPage(page, overrideSortBy){
   return { results, totalPages: data.total_pages || 1 };
 }
 
-const RATING_POOL_PAGES = 5; // 100 πιο δημοφιλείς/γνωστοί τίτλοι — σταθερή δεξαμενή
+const RATING_POOL_PAGES = 8; // ~160 πιο γνωστοί τίτλοι — σταθερή δεξαμενή
 
 async function fetchEnrichedPool(){
   const sortMode = els.sortBy.value;
@@ -1244,9 +1261,10 @@ async function fetchEnrichedPool(){
   const q = els.query.value.trim();
   const pagesToFetch = q ? [1, 2, 3] : Array.from({length: RATING_POOL_PAGES}, (_, i) => i + 1);
 
-  // Για ταξινόμηση IMDb/Metascore θέλουμε σταθερή δεξαμενή γνωστών τίτλων (vote_count.desc).
-  // Για όλες τις άλλες περιπτώσεις (π.χ. Trending + ελάχιστο rating) σεβόμαστε την επιλεγμένη ταξινόμηση.
-  const poolSortOverride = isRatingSort ? 'vote_count.desc' : undefined;
+  // Όποτε υπάρχει ελάχιστο rating (ή ταξινόμηση IMDb/Metascore) θέλουμε σταθερή δεξαμενή
+  // γνωστών τίτλων (vote_count.desc) — όχι "Trending τώρα", που δείχνει μόνο τρέχουσα δημοφιλία
+  // και αποκλείει διαχρονικές ταινίες σε παλιότερα φίλτρα ετών.
+  const poolSortOverride = (isRatingSort || minRating > 0) ? 'vote_count.desc' : undefined;
   const pageResults = await Promise.all(pagesToFetch.map(p => fetchRawPage(p, poolSortOverride).catch(() => ({ results: [] }))));
   let pool = [];
   const seenIds = new Set();
@@ -1384,6 +1402,7 @@ function clearFilters(){
   updateAgeLimitAvailability();
   els.showIndianKorean.checked = false;
   state.selectedGenres.clear();
+  state.langFilter = null;
   renderGenreChips();
   updateGenreFilterCount();
   els.genreChipsPanel.classList.add('hidden');
