@@ -177,6 +177,17 @@
   .toggle-row label{cursor:pointer;}
   .panel-toggle{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
 
+  .active-filters-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+  .active-filter-chip{
+    display:inline-flex;align-items:center;gap:6px;background:rgba(232,179,74,0.12);
+    border:1px solid rgba(232,179,74,0.4);color:var(--gold);padding:5px 10px;border-radius:20px;
+    font-size:12px;
+  }
+  .active-filter-chip button{
+    background:transparent;border:none;color:var(--gold);cursor:pointer;font-size:13px;line-height:1;padding:0;
+  }
+  .active-filter-chip button:hover{color:#fff;}
+
   .grid{
     display:grid;grid-template-columns:repeat(auto-fill, minmax(190px, 1fr));gap:20px;
   }
@@ -406,7 +417,8 @@
     #advancedFilters .field select,
     #advancedFilters .field .genre-filter-btn{min-width:0;width:100%;padding:8px 6px;font-size:12px;}
 
-    .controls .field label{font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .controls > .field > label,
+    #advancedFilters > .field > label{font-size:9.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .controls .range-row{gap:4px;}
     .controls .range-row input[type=range]{width:100%;min-width:0;}
     .controls .range-val{font-size:11px;min-width:22px;}
@@ -500,6 +512,8 @@
     <button class="go" id="goBtn">Αναζήτηση</button>
     <button class="clear" id="clearBtn" type="button">Καθαρισμός</button>
   </div>
+
+  <div class="active-filters-row" id="activeFiltersRow"></div>
 
   <div class="meta-row">
     <span class="count" id="resultCount"></span>
@@ -640,6 +654,7 @@ const els = {
   genreFilterBtn: document.getElementById('genreFilterBtn'),
   genreChipsPanel: document.getElementById('genreChipsPanel'),
   genreFilterCount: document.getElementById('genreFilterCount'),
+  activeFiltersRow: document.getElementById('activeFiltersRow'),
   results: document.getElementById('results'),
   resultCount: document.getElementById('resultCount'),
   showIndianKorean: document.getElementById('showIndianKorean'),
@@ -681,7 +696,41 @@ document.addEventListener('click', (e) => {
 });
 function updateGenreFilterCount(){
   els.genreFilterCount.textContent = state.selectedGenres.size ? `(${state.selectedGenres.size})` : '';
+  renderActiveFilters();
 }
+
+const LANG_FILTER_LABELS = { ko: 'Κορεάτικα' };
+
+function renderActiveFilters(){
+  els.activeFiltersRow.innerHTML = '';
+  state.selectedGenres.forEach(id => {
+    const name = state.genres[id];
+    if(!name) return;
+    const chip = document.createElement('span');
+    chip.className = 'active-filter-chip';
+    chip.innerHTML = `${name} <button title="Αφαίρεση">✕</button>`;
+    chip.querySelector('button').onclick = () => {
+      state.selectedGenres.delete(id);
+      renderGenreChips();
+      updateGenreFilterCount();
+      runSearch();
+    };
+    els.activeFiltersRow.appendChild(chip);
+  });
+  if(state.langFilter){
+    const chip = document.createElement('span');
+    chip.className = 'active-filter-chip';
+    chip.innerHTML = `${LANG_FILTER_LABELS[state.langFilter] || state.langFilter} <button title="Αφαίρεση">✕</button>`;
+    chip.querySelector('button').onclick = () => {
+      state.langFilter = null;
+      renderGenreChips();
+      renderActiveFilters();
+      runSearch();
+    };
+    els.activeFiltersRow.appendChild(chip);
+  }
+}
+
 els.showIndianKorean.addEventListener('change', runSearch);
 els.modalClose.addEventListener('click', closeModal);
 els.modalOverlay.addEventListener('click', (e) => { if(e.target === els.modalOverlay) closeModal(); });
@@ -773,6 +822,7 @@ function renderGenreChips(){
   koChip.onclick = () => {
     state.langFilter = state.langFilter === 'ko' ? null : 'ko';
     renderGenreChips();
+    renderActiveFilters();
   };
   els.genreChips.appendChild(koChip);
 }
