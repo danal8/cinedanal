@@ -45,6 +45,51 @@
     border-bottom:1px solid var(--line);padding-bottom:22px;
   }
   .brand{display:flex;align-items:baseline;gap:12px;}
+  .brand-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .profile-btn{
+    background:var(--bg-raised);border:1px solid var(--line);color:var(--text);
+    padding:8px 14px;border-radius:20px;font-size:12.5px;cursor:pointer;font-family:'IBM Plex Sans';
+    white-space:nowrap;
+  }
+  .profile-btn:hover{border-color:var(--gold-dim);}
+  .watchlist-toggle-btn{
+    background:var(--bg-raised);border:1px solid var(--line);color:var(--text-dim);
+    padding:0 14px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:'IBM Plex Sans';
+    white-space:nowrap;
+  }
+  .watchlist-toggle-btn.active{background:var(--gold);color:#1a1200;font-weight:600;border-color:var(--gold);}
+  .watchlist-toggle-btn:hover:not(.active){border-color:var(--gold-dim);color:var(--text);}
+
+  .auth-modal{max-width:400px;padding:28px;}
+  .auth-title{font-family:'Fraunces';font-weight:700;font-size:20px;margin-bottom:16px;}
+  .auth-section{margin-bottom:20px;}
+  .auth-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;display:block;}
+  .profile-pill-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+  .profile-pill{
+    background:var(--bg-raised);border:1px solid var(--line);color:var(--text);padding:8px 16px;
+    border-radius:20px;cursor:pointer;font-size:13px;
+  }
+  .profile-pill:hover{border-color:var(--gold-dim);}
+  .auth-input{
+    background:var(--bg-raised);border:1px solid var(--line);color:var(--text);padding:10px 12px;
+    border-radius:7px;font-size:14px;width:100%;margin-bottom:10px;outline:none;
+  }
+  .auth-input:focus{border-color:var(--gold-dim);}
+  .auth-btn{
+    background:var(--gold);color:#1a1200;border:none;padding:10px 20px;border-radius:7px;
+    font-weight:600;cursor:pointer;font-size:13.5px;width:100%;
+  }
+  .auth-btn:hover{background:#f0c165;}
+  .auth-btn.secondary{background:transparent;border:1px solid var(--line);color:var(--text-dim);margin-top:8px;}
+  .auth-error{color:var(--danger);font-size:12.5px;margin-top:6px;}
+  .auth-divider{text-align:center;color:var(--text-dim);font-size:11px;margin:16px 0;text-transform:uppercase;letter-spacing:1px;}
+
+  .bookmark-btn{
+    display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;
+    color:var(--text-dim);cursor:pointer;padding:0;font-size:16px;line-height:1;
+  }
+  .bookmark-btn.saved{color:var(--gold);}
+  .bookmark-btn:hover{color:var(--gold);}
   .brand .reel{font-family:'IBM Plex Mono';font-size:12px;letter-spacing:3px;color:var(--gold-dim);text-transform:uppercase;}
   h1{
     font-family:'Fraunces', serif;font-weight:700;font-size:40px;margin:0;
@@ -331,6 +376,8 @@
     h1{font-size:20px;}
     .tagline{font-size:11.5px;}
     header{margin-bottom:14px;padding-bottom:10px;}
+    .profile-btn{padding:6px 10px;font-size:11px;}
+    .watchlist-toggle-btn{padding:0 10px;font-size:11px;height:30px;}
     .controls{padding:12px;gap:8px 6px;}
     .field input[type=text]{min-width:0;width:100%;}
     .field.grow{flex:1 1 100%;}
@@ -378,9 +425,12 @@
 <div class="wrap">
 
   <header>
-    <div class="brand">
-      <span class="reel">● REC</span>
-      <h1>Cine<span>Danal</span></h1>
+    <div class="brand-row">
+      <div class="brand">
+        <span class="reel">● REC</span>
+        <h1>Cine<span>Danal</span></h1>
+      </div>
+      <button type="button" id="profileBtn" class="profile-btn">👤 Σύνδεση</button>
     </div>
     <p class="tagline">Αναζήτηση ταινιών &amp; σειρών με φίλτρα είδους, χρονιάς και βαθμολογίας IMDb.</p>
   </header>
@@ -452,9 +502,12 @@
 
   <div class="meta-row">
     <span class="count" id="resultCount"></span>
-    <div class="view-toggle">
-      <button id="viewListBtn" class="active">☰ Λίστα</button>
-      <button id="viewGridBtn">▦ Πλακίδια</button>
+    <div style="display:flex;gap:8px;">
+      <button id="watchlistBtn" class="watchlist-toggle-btn">🔖 Watchlist</button>
+      <div class="view-toggle">
+        <button id="viewListBtn" class="active">☰ Λίστα</button>
+        <button id="viewGridBtn">▦ Πλακίδια</button>
+      </div>
     </div>
   </div>
 
@@ -470,6 +523,13 @@
   <div class="modal">
     <button class="modal-close" id="modalClose">✕</button>
     <div id="modalContent"><div class="modal-loading">Φόρτωση...</div></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="authOverlay">
+  <div class="modal auth-modal">
+    <button class="modal-close" id="authClose">✕</button>
+    <div id="authContent"></div>
   </div>
 </div>
 
@@ -509,7 +569,58 @@ const state = {
   lastQuery: '',
   lastResults: [],
   omdbLimitReached: false,
+  profileName: null,
+  watchlistItems: [], // [{id, mediaType, title, poster_path, date, vote_average}]
+  watchlistIds: new Set(), // "movie:123" / "tv:456"
+  viewingWatchlist: false,
 };
+
+const SUPA_URL = 'https://odtbtugzilxsfqxlpofq.supabase.co';
+const SUPA_KEY = 'sb_publishable_ch-7C1ihpZRrxEhXFqV1xA_hXPwq61S';
+const PROFILE_STORAGE_KEY = 'cinedanal_profile';
+
+function wlKey(id, mediaType){ return `${mediaType}:${id}`; }
+
+async function supaWatchlistFetchNames(){
+  try{
+    const r = await fetch(`${SUPA_URL}/rest/v1/cinedanal_watchlist?select=profile_name`, {
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }
+    });
+    const j = await r.json();
+    return Array.isArray(j) ? j.map(row => row.profile_name) : [];
+  }catch(e){ return []; }
+}
+
+async function supaWatchlistFetchProfile(name){
+  try{
+    const r = await fetch(`${SUPA_URL}/rest/v1/cinedanal_watchlist?profile_name=eq.${encodeURIComponent(name)}&select=*`, {
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }
+    });
+    const j = await r.json();
+    return (Array.isArray(j) && j.length) ? j[0] : null;
+  }catch(e){ return null; }
+}
+
+async function supaWatchlistCreate(name, pin){
+  try{
+    const r = await fetch(`${SUPA_URL}/rest/v1/cinedanal_watchlist`, {
+      method: 'POST',
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ profile_name: name, pin: pin, items: '[]' })
+    });
+    return r.ok;
+  }catch(e){ return false; }
+}
+
+async function supaWatchlistSave(name, items){
+  try{
+    await fetch(`${SUPA_URL}/rest/v1/cinedanal_watchlist?profile_name=eq.${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ items: JSON.stringify(items), updated_at: new Date().toISOString() })
+    });
+  }catch(e){}
+}
 
 const els = {
   query: document.getElementById('query'),
@@ -537,6 +648,11 @@ const els = {
   modalOverlay: document.getElementById('modalOverlay'),
   modalContent: document.getElementById('modalContent'),
   modalClose: document.getElementById('modalClose'),
+  profileBtn: document.getElementById('profileBtn'),
+  authOverlay: document.getElementById('authOverlay'),
+  authContent: document.getElementById('authContent'),
+  authClose: document.getElementById('authClose'),
+  watchlistBtn: document.getElementById('watchlistBtn'),
 };
 
 function applyViewMode(){
@@ -664,6 +780,9 @@ function renderResultsSkeleton(items, append=false){
     const hasPreloadedRatings = item._imdbRating !== undefined;
     const imdbText = hasPreloadedRatings ? (item._imdbRating ? `IMDb ${item._imdbRating}` : 'IMDb —') : 'IMDb …';
     const metaText = hasPreloadedRatings && item._metascore ? `Metascore ${item._metascore}` : '';
+    const itemMediaType = item._mediaTypeOverride || state.mediaType;
+    const bkKey = wlKey(item.id, itemMediaType);
+    const isSaved = state.watchlistIds.has(bkKey);
 
     const card = document.createElement('div');
     card.className = 'card';
@@ -685,6 +804,7 @@ function renderResultsSkeleton(items, append=false){
           <div class="card-sub">
             <span>${year}</span>
             <a href="${stremioUrl}" class="stremio-inline" title="Άνοιγμα στο Stremio" onclick="event.stopPropagation()">▶ Stremio</a>
+            <button class="bookmark-btn${isSaved ? ' saved' : ''}" data-bookmark-key="${bkKey}" title="Watchlist" onclick="event.stopPropagation(); toggleWatchlist({id:${item.id}, mediaType:'${itemMediaType}', title:${JSON.stringify(title)}, poster_path:${JSON.stringify(item.poster_path||null)}, date:${JSON.stringify(date)}, vote_average:${item.vote_average||'null'}})">${isSaved ? '🔖' : '🏷️'}</button>
           </div>
         </div>
         <div class="rating-box">
@@ -694,7 +814,10 @@ function renderResultsSkeleton(items, append=false){
         </div>
       </div>
     `;
-    card.addEventListener('click', () => openModal(item.id, title));
+    card.addEventListener('click', () => {
+      state.mediaType = itemMediaType;
+      openModal(item.id, title);
+    });
     els.results.appendChild(card);
   });
 }
@@ -905,6 +1028,7 @@ async function openModal(tmdbId, englishTitle){
       <div class="modal-body">
         ${trailerUrl ? `<a href="${trailerUrl}" target="_blank" rel="noopener" class="trailer-link">▶ Trailer στο YouTube</a>` : ''}
         ${hasNetflix ? `<a href="${netflixUrl}" target="_blank" rel="noopener" class="netflix-link">▶ Netflix</a>` : ''}
+        <button class="trailer-link" style="background:var(--bg-raised);color:var(--text);border:1px solid var(--line);" id="modalBookmarkBtn"></button>
         <div class="modal-share-row">
           <a href="https://wa.me/?text=${encodedShareText}" target="_blank" rel="noopener" class="share-chip whatsapp" title="WhatsApp">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.6 6.32A7.85 7.85 0 0 0 12.05 4a7.94 7.94 0 0 0-6.87 11.88L4 20l4.24-1.11a7.9 7.9 0 0 0 3.8.97h.01a7.95 7.95 0 0 0 5.55-13.54zM12.05 18.4a6.6 6.6 0 0 1-3.37-.92l-.24-.14-2.51.66.67-2.45-.16-.25a6.58 6.58 0 0 1-1.01-3.5 6.6 6.6 0 1 1 6.62 6.6zm3.62-4.94c-.2-.1-1.17-.58-1.35-.64s-.31-.1-.44.1-.51.64-.62.77-.23.15-.42.05a5.4 5.4 0 0 1-1.6-.99 6 6 0 0 1-1.1-1.37c-.12-.2 0-.3.09-.4.09-.1.2-.24.3-.36a1.3 1.3 0 0 0 .2-.34.38.38 0 0 0-.02-.35c-.05-.1-.44-1.06-.6-1.45-.16-.38-.32-.33-.44-.33h-.38a.72.72 0 0 0-.52.24 2.2 2.2 0 0 0-.68 1.63 3.8 3.8 0 0 0 .8 2.03 8.7 8.7 0 0 0 3.33 2.94c.47.2.83.32 1.12.41a2.7 2.7 0 0 0 1.24.08 2.03 2.03 0 0 0 1.33-.94 1.65 1.65 0 0 0 .11-.94c-.05-.09-.18-.14-.37-.24z"/></svg>
@@ -934,6 +1058,19 @@ async function openModal(tmdbId, englishTitle){
         ` : ''}
       </div>
     `;
+
+    const modalBkKey = wlKey(tmdbId, state.mediaType);
+    const modalBkBtn = document.getElementById('modalBookmarkBtn');
+    function updateModalBkBtn(){
+      const saved = state.watchlistIds.has(modalBkKey);
+      modalBkBtn.textContent = saved ? '🔖 Στη Watchlist' : '🏷️ Προσθήκη σε Watchlist';
+      modalBkBtn.setAttribute('data-bookmark-key', modalBkKey);
+    }
+    updateModalBkBtn();
+    modalBkBtn.onclick = async () => {
+      await toggleWatchlist({ id: tmdbId, mediaType: state.mediaType, title, poster_path: details.poster_path || null, date, vote_average: details.vote_average || null });
+      updateModalBkBtn();
+    };
 
     els.modalContent.querySelectorAll('.rec-card').forEach(card => {
       card.addEventListener('click', () => {
@@ -1141,6 +1278,8 @@ function needsPool(){
 }
 
 async function runSearch(){
+  state.viewingWatchlist = false;
+  updateWatchlistBtn();
   els.goBtn.disabled = true;
   setState('loading');
   els.resultCount.textContent = '';
@@ -1276,9 +1415,209 @@ async function autoLoadTrendingPreview(){
   }
 }
 
+// ============================================================
+// Προφίλ & Watchlist
+// ============================================================
+
+function openAuthModal(){ els.authOverlay.classList.remove('hidden'); }
+function closeAuthModal(){ els.authOverlay.classList.add('hidden'); }
+els.authClose.addEventListener('click', closeAuthModal);
+els.authOverlay.addEventListener('click', (e) => { if(e.target === els.authOverlay) closeAuthModal(); });
+
+async function renderAuthScreen(){
+  els.authContent.innerHTML = '<div class="modal-loading">Φόρτωση...</div>';
+  const names = await supaWatchlistFetchNames();
+  els.authContent.innerHTML = `
+    <div class="auth-title">Σύνδεση σε προφίλ</div>
+    ${names.length ? `
+      <div class="auth-section">
+        <span class="auth-label">Υπάρχοντα προφίλ</span>
+        <div class="profile-pill-list" id="profilePillList">
+          ${names.map(n => `<button class="profile-pill" data-name="${n}">${n}</button>`).join('')}
+        </div>
+      </div>
+      <div class="auth-divider">ή</div>
+    ` : ''}
+    <div class="auth-section">
+      <span class="auth-label">Δημιουργία νέου προφίλ</span>
+      <input type="text" class="auth-input" id="newProfileName" placeholder="Όνομα (π.χ. Γιώργος)" maxlength="20">
+      <input type="password" class="auth-input" id="newProfilePin" placeholder="4ψήφιο PIN" maxlength="4" inputmode="numeric">
+      <button class="auth-btn" id="createProfileBtn">Δημιουργία</button>
+      <div class="auth-error" id="authError"></div>
+    </div>
+  `;
+  document.querySelectorAll('.profile-pill').forEach(pill => {
+    pill.addEventListener('click', () => promptPinLogin(pill.dataset.name));
+  });
+  document.getElementById('createProfileBtn').addEventListener('click', handleCreateProfile);
+}
+
+function promptPinLogin(name){
+  els.authContent.innerHTML = `
+    <div class="auth-title">Σύνδεση: ${name}</div>
+    <div class="auth-section">
+      <span class="auth-label">PIN</span>
+      <input type="password" class="auth-input" id="loginPin" placeholder="4ψήφιο PIN" maxlength="4" inputmode="numeric" autofocus>
+      <button class="auth-btn" id="loginBtn">Σύνδεση</button>
+      <button class="auth-btn secondary" id="backToAuthBtn">← Πίσω</button>
+      <div class="auth-error" id="authError"></div>
+    </div>
+  `;
+  document.getElementById('backToAuthBtn').addEventListener('click', renderAuthScreen);
+  document.getElementById('loginBtn').addEventListener('click', async () => {
+    const pin = document.getElementById('loginPin').value.trim();
+    const errEl = document.getElementById('authError');
+    const row = await supaWatchlistFetchProfile(name);
+    if(row && row.pin === pin){
+      loginAs(name, row);
+    } else {
+      errEl.textContent = 'Λάθος PIN.';
+    }
+  });
+  document.getElementById('loginPin').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') document.getElementById('loginBtn').click();
+  });
+}
+
+async function handleCreateProfile(){
+  const name = document.getElementById('newProfileName').value.trim();
+  const pin = document.getElementById('newProfilePin').value.trim();
+  const errEl = document.getElementById('authError');
+  if(!name || !/^\d{4}$/.test(pin)){
+    errEl.textContent = 'Βάλε όνομα και 4ψήφιο PIN (μόνο αριθμοί).';
+    return;
+  }
+  const existing = await supaWatchlistFetchProfile(name);
+  if(existing){
+    errEl.textContent = 'Υπάρχει ήδη προφίλ με αυτό το όνομα.';
+    return;
+  }
+  const ok = await supaWatchlistCreate(name, pin);
+  if(ok){
+    loginAs(name, { profile_name: name, items: '[]' });
+  } else {
+    errEl.textContent = 'Κάτι πήγε στραβά, δοκίμασε ξανά.';
+  }
+}
+
+function loginAs(name, row){
+  state.profileName = name;
+  localStorage.setItem(PROFILE_STORAGE_KEY, name);
+  try{ state.watchlistItems = JSON.parse(row.items || '[]'); }catch(e){ state.watchlistItems = []; }
+  state.watchlistIds = new Set(state.watchlistItems.map(it => wlKey(it.id, it.mediaType)));
+  updateProfileBtn();
+  closeAuthModal();
+}
+
+function logout(){
+  state.profileName = null;
+  state.watchlistItems = [];
+  state.watchlistIds = new Set();
+  state.viewingWatchlist = false;
+  localStorage.removeItem(PROFILE_STORAGE_KEY);
+  updateProfileBtn();
+  updateWatchlistBtn();
+}
+
+function updateProfileBtn(){
+  els.profileBtn.textContent = state.profileName ? `👤 ${state.profileName} ▾` : '👤 Σύνδεση';
+}
+
+els.profileBtn.addEventListener('click', () => {
+  if(state.profileName){
+    // ήδη συνδεδεμένος: μενού απλό με confirm για αποσύνδεση
+    if(confirm(`Αποσύνδεση από «${state.profileName}»;`)) logout();
+  } else {
+    renderAuthScreen();
+    openAuthModal();
+  }
+});
+
+async function restoreProfileSession(){
+  const savedName = localStorage.getItem(PROFILE_STORAGE_KEY);
+  if(!savedName) return;
+  const row = await supaWatchlistFetchProfile(savedName);
+  if(row){
+    state.profileName = savedName;
+    try{ state.watchlistItems = JSON.parse(row.items || '[]'); }catch(e){ state.watchlistItems = []; }
+    state.watchlistIds = new Set(state.watchlistItems.map(it => wlKey(it.id, it.mediaType)));
+    updateProfileBtn();
+  }
+}
+
+async function toggleWatchlist(item){
+  if(!state.profileName){
+    renderAuthScreen();
+    openAuthModal();
+    return;
+  }
+  const key = wlKey(item.id, item.mediaType || state.mediaType);
+  if(state.watchlistIds.has(key)){
+    state.watchlistIds.delete(key);
+    state.watchlistItems = state.watchlistItems.filter(it => wlKey(it.id, it.mediaType) !== key);
+  } else {
+    state.watchlistIds.add(key);
+    state.watchlistItems.unshift({
+      id: item.id,
+      mediaType: item.mediaType || state.mediaType,
+      title: item.title,
+      poster_path: item.poster_path || null,
+      date: item.date || '',
+      vote_average: item.vote_average || null,
+    });
+  }
+  await supaWatchlistSave(state.profileName, state.watchlistItems);
+  // ενημέρωση εικονιδίων στην τρέχουσα προβολή
+  document.querySelectorAll(`[data-bookmark-key="${key}"]`).forEach(btn => {
+    btn.classList.toggle('saved', state.watchlistIds.has(key));
+    btn.textContent = state.watchlistIds.has(key) ? '🔖' : '🏷️';
+  });
+  if(state.viewingWatchlist) renderWatchlistView();
+}
+
+function updateWatchlistBtn(){
+  els.watchlistBtn.classList.toggle('active', state.viewingWatchlist);
+}
+
+function renderWatchlistView(){
+  state.viewingWatchlist = true;
+  updateWatchlistBtn();
+  els.loadMoreRow.style.display = 'none';
+  if(!state.profileName){
+    setState('empty', 'Συνδέσου σε προφίλ για να δεις τη watchlist σου.');
+    els.resultCount.textContent = '';
+    return;
+  }
+  if(!state.watchlistItems.length){
+    setState('empty', 'Η watchlist σου είναι άδεια — πρόσθεσε τίτλους με το 🔖.');
+    els.resultCount.textContent = '';
+    return;
+  }
+  els.resultCount.textContent = `${state.watchlistItems.length} τίτλοι στη watchlist`;
+  state.lastResults = state.watchlistItems;
+  els.results.innerHTML = '';
+  renderResultsSkeleton(state.watchlistItems.map(it => ({
+    id: it.id, title: it.title, name: it.title, poster_path: it.poster_path,
+    release_date: it.mediaType === 'movie' ? it.date : undefined,
+    first_air_date: it.mediaType === 'tv' ? it.date : undefined,
+    vote_average: it.vote_average, _mediaTypeOverride: it.mediaType,
+  })));
+}
+
+els.watchlistBtn.addEventListener('click', () => {
+  if(state.viewingWatchlist){
+    state.viewingWatchlist = false;
+    updateWatchlistBtn();
+    runSearch();
+  } else {
+    renderWatchlistView();
+  }
+});
+
 applyViewMode();
 loadGenres();
 autoLoadTrendingPreview();
+restoreProfileSession();
 
 // ============================================================
 // Πλοήγηση με τηλεκοντρόλ / πληκτρολόγιο (π.χ. Android TV)
