@@ -186,6 +186,13 @@
   .panel-toggle{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
 
   .active-filters-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+
+  .preview-notice{
+    background:rgba(232,179,74,0.08);border:1px solid rgba(232,179,74,0.25);color:var(--text-dim);
+    font-size:12.5px;padding:8px 14px;border-radius:8px;margin-top:12px;
+  }
+  .preview-notice strong{color:var(--gold);}
+  .preview-notice.hidden{display:none;}
   .active-filter-chip{
     display:inline-flex;align-items:center;gap:6px;background:rgba(232,179,74,0.12);
     border:1px solid rgba(232,179,74,0.4);color:var(--gold);padding:5px 10px;border-radius:20px;
@@ -435,7 +442,7 @@
     .list-mode .rating-line.meta-line{font-size:12.5px;}
     .list-mode .rating-line.tmdb-line{font-size:11px;}
     .list-mode .card-sub{font-size:13px;gap:8px;}
-    .list-mode .bookmark-badge{width:24px;height:24px;font-size:15px;}
+    .list-mode .bookmark-badge{width:24px;height:24px;font-size:15px;top:5px;left:5px;}
     .stremio-inline{font-size:12px;}
     .modal-hero{flex-direction:column;}
     .modal-hero img.modal-poster-img, .modal-hero .noimg{width:100%;flex:none;height:auto;aspect-ratio:2/3;}
@@ -521,6 +528,8 @@
   </div>
 
   <div class="active-filters-row" id="activeFiltersRow"></div>
+
+  <div class="preview-notice hidden" id="previewNotice">💡 Δείχνει δημοφιλείς τίτλους. Πάτα <strong>Αναζήτηση</strong> για να φορτωθούν τα πραγματικά IMDb ratings.</div>
 
   <div class="meta-row">
     <span class="count" id="resultCount"></span>
@@ -662,6 +671,7 @@ const els = {
   genreChipsPanel: document.getElementById('genreChipsPanel'),
   genreFilterCount: document.getElementById('genreFilterCount'),
   activeFiltersRow: document.getElementById('activeFiltersRow'),
+  previewNotice: document.getElementById('previewNotice'),
   results: document.getElementById('results'),
   resultCount: document.getElementById('resultCount'),
   showIndianKorean: document.getElementById('showIndianKorean'),
@@ -1378,6 +1388,7 @@ function needsPool(){
 async function runSearch(){
   state.viewingWatchlist = false;
   updateWatchlistBtn();
+  els.previewNotice.classList.add('hidden');
   els.goBtn.disabled = true;
   setState('loading');
   els.resultCount.textContent = '';
@@ -1508,6 +1519,7 @@ async function autoLoadTrendingPreview(){
     els.results.innerHTML = '';
     els.resultCount.textContent = `${results.length} αποτελέσματα`;
     renderResultsSkeleton(results);
+    els.previewNotice.classList.remove('hidden');
     // Σκόπιμα ΔΕΝ καλούμε enrichWithImdb εδώ.
   }catch(e){
     // αν αποτύχει, απλά μένει η αρχική κενή κατάσταση — καμία ζημιά
