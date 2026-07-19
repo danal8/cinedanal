@@ -168,9 +168,9 @@
   .meta-row .count{color:var(--text-dim);font-size:13px;font-family:'IBM Plex Mono';}
   .sortfield select{background:var(--bg-raised);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:7px;font-size:12.5px;}
 
-  .view-toggle{display:flex;gap:4px;background:var(--bg-raised);border:1px solid var(--line);border-radius:7px;padding:3px;}
+  .view-toggle{display:flex;gap:4px;background:var(--bg-raised);border:1px solid var(--line);border-radius:7px;padding:3px;height:38px;box-sizing:border-box;}
   .view-toggle button{
-    background:transparent;border:none;color:var(--text-dim);padding:6px 12px;border-radius:5px;
+    background:transparent;border:none;color:var(--text-dim);padding:0 12px;border-radius:5px;height:100%;
     cursor:pointer;font-size:12.5px;font-family:'IBM Plex Sans';
   }
   .view-toggle button.active{background:var(--gold);color:#1a1200;font-weight:600;}
@@ -399,7 +399,9 @@
     .tagline{font-size:11.5px;}
     header{margin-bottom:14px;padding-bottom:10px;}
     .profile-btn{padding:6px 10px;font-size:11px;}
-    .watchlist-toggle-btn{padding:0 10px;font-size:11px;height:30px;}
+    .watchlist-toggle-btn{padding:0 12px;font-size:12px;height:32px;box-sizing:border-box;}
+    .view-toggle{height:32px;}
+    .view-toggle button{padding:0 10px;font-size:12px;}
     .controls{padding:12px;gap:8px 6px;}
     .field input[type=text]{min-width:0;width:100%;}
     .field.grow{flex:1 1 100%;}
