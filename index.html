@@ -336,7 +336,7 @@
   .person-header-dept{font-size:12.5px;color:var(--teal);margin-bottom:4px;}
   .person-header-bio{font-size:12.5px;color:var(--text-dim);margin-top:8px;line-height:1.5;max-height:80px;overflow-y:auto;}
   .person-filmo-title{font-family:'Fraunces';font-weight:600;font-size:15px;margin:20px 26px 10px;}
-  .person-filmo-list{display:flex;flex-direction:column;gap:6px;padding:0 26px 26px;}
+  .person-filmo-list{display:flex;flex-direction:column;gap:6px;padding:0 26px 26px;max-height:60vh;overflow-y:auto;}
   .person-filmo-item{
     display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:8px;cursor:pointer;
     transition:background .15s;
@@ -488,6 +488,9 @@
     .stremio-inline{font-size:12px;}
     .modal-hero{flex-direction:column;}
     .modal-hero img.modal-poster-img, .modal-hero .noimg{width:100%;flex:none;height:auto;aspect-ratio:2/3;}
+    .modal-credits div{font-size:15px;line-height:1.6;}
+    .credits-label{font-size:15px;}
+    .person-link{padding:3px 2px;display:inline-block;}
   }
 </style>
 </head>
@@ -1862,9 +1865,24 @@ async function openPersonModal_load(personId, fallbackName){
     const deptLabel = data.known_for_department === 'Directing' ? 'Σκηνοθέτης/τρια' : data.known_for_department === 'Acting' ? 'Ηθοποιός' : (data.known_for_department || '');
     const bio = data.biography ? data.biography.slice(0, 400) + (data.biography.length > 400 ? '…' : '') : '';
 
-    const credits = (data.combined_credits && [...(data.combined_credits.cast || []), ...(data.combined_credits.crew || [])]) || [];
+    // Φιλτράρισμα με βάση την κύρια ιδιότητα του προσώπου:
+    // - Ηθοποιοί: μόνο πραγματικοί ρόλοι (cast), όχι π.χ. παραγωγή/σενάριο που έχουν κάνει περιστασιακά.
+    // - Σκηνοθέτες: μόνο δουλειές σκηνοθεσίας, όχι άλλες θέσεις (παραγωγός, σεναριογράφος κλπ).
+    // - Οτιδήποτε άλλο (π.χ. Writing, Production): όλα τα credits μαζί, cast+crew.
+    let creditsSource;
+    if(data.known_for_department === 'Acting'){
+      creditsSource = data.combined_credits && data.combined_credits.cast || [];
+    } else if(data.known_for_department === 'Directing'){
+      creditsSource = (data.combined_credits && data.combined_credits.crew || []).filter(c => c.job === 'Director');
+    } else {
+      creditsSource = (data.combined_credits && [...(data.combined_credits.cast || []), ...(data.combined_credits.crew || [])]) || [];
+    }
+    // fallback: αν το φιλτράρισμα βγάλει πολύ λίγα (π.χ. λάθος ταξινόμηση στο TMDb), δείξε τα πάντα
+    if(creditsSource.length < 3){
+      creditsSource = (data.combined_credits && [...(data.combined_credits.cast || []), ...(data.combined_credits.crew || [])]) || [];
+    }
     const seen = new Set();
-    const filmo = credits.filter(c => {
+    const filmo = creditsSource.filter(c => {
       const key = c.media_type + ':' + c.id;
       if(seen.has(key)) return false;
       seen.add(key);
@@ -1873,7 +1891,7 @@ async function openPersonModal_load(personId, fallbackName){
       const da = a.release_date || a.first_air_date || '';
       const db = b.release_date || b.first_air_date || '';
       return db.localeCompare(da);
-    }).slice(0, 40);
+    }); // χωρίς όριο πλέον — ολόκληρη η φιλμογραφία, scrollable στο modal
 
     els.personContent.innerHTML = `
       <div class="person-header">
