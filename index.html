@@ -290,9 +290,10 @@
     background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:860px;width:100%;
     max-height:86vh;overflow-y:auto;position:relative;
   }
+  .modal-close-wrap{position:sticky;top:0;height:0;overflow:visible;z-index:5;}
   .modal-close{
-    position:absolute;top:12px;right:14px;background:rgba(0,0,0,0.4);border:none;color:var(--text);
-    width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;z-index:2;
+    position:absolute;top:12px;right:14px;background:rgba(0,0,0,0.55);border:none;color:var(--text);
+    width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;
   }
   .modal-hero{display:flex;gap:26px;padding:28px;border-bottom:1px solid var(--line);}
   .modal-hero img.modal-poster-img{width:165px;border-radius:8px;flex:0 0 165px;}
@@ -598,21 +599,21 @@
 
 <div class="modal-overlay hidden" id="modalOverlay">
   <div class="modal">
-    <button class="modal-close" id="modalClose">✕</button>
+    <div class="modal-close-wrap"><button class="modal-close" id="modalClose">✕</button></div>
     <div id="modalContent"><div class="modal-loading">Φόρτωση...</div></div>
   </div>
 </div>
 
 <div class="modal-overlay hidden" id="authOverlay">
   <div class="modal auth-modal">
-    <button class="modal-close" id="authClose">✕</button>
+    <div class="modal-close-wrap"><button class="modal-close" id="authClose">✕</button></div>
     <div id="authContent"></div>
   </div>
 </div>
 
 <div class="modal-overlay hidden" id="personOverlay">
   <div class="modal">
-    <button class="modal-close" id="personClose">✕</button>
+    <div class="modal-close-wrap"><button class="modal-close" id="personClose">✕</button></div>
     <div id="personContent"><div class="modal-loading">Φόρτωση...</div></div>
   </div>
 </div>
@@ -1822,8 +1823,23 @@ els.watchlistBtn.addEventListener('click', () => {
 // Αναζήτηση Προσώπων (Ηθοποιοί/Σκηνοθέτες) & Φιλμογραφία
 // ============================================================
 
-function openPersonModal(){ els.personOverlay.classList.remove('hidden'); }
-function closePersonModal(){ els.personOverlay.classList.add('hidden'); }
+function openPersonModal(){
+  els.personOverlay.classList.remove('hidden');
+  if(!(history.state && history.state.cinedanalPersonModal)){
+    history.pushState({ cinedanalPersonModal: true }, '');
+  }
+}
+function closePersonModal(fromPopState){
+  els.personOverlay.classList.add('hidden');
+  if(!fromPopState && history.state && history.state.cinedanalPersonModal){
+    history.back();
+  }
+}
+window.addEventListener('popstate', (e) => {
+  if(!els.personOverlay.classList.contains('hidden')){
+    closePersonModal(true);
+  }
+});
 els.personClose.addEventListener('click', closePersonModal);
 els.personOverlay.addEventListener('click', (e) => { if(e.target === els.personOverlay) closePersonModal(); });
 
