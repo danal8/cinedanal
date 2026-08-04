@@ -1945,7 +1945,7 @@ async function openPersonModal_load(personId, fallbackName){
         const mt = el.getAttribute('data-filmo-type');
         const t = el.getAttribute('data-filmo-title');
         if(mt !== 'movie' && mt !== 'tv') return;
-        closePersonModal();
+        closePersonModal(true); // true = μην κάνεις history.back(), το openModal θα προσθέσει τη δική του κατάσταση
         state.mediaType = mt;
         openModal(id, t);
       });
