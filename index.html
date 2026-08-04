@@ -309,6 +309,45 @@
   .modal-credits{margin-top:8px;display:flex;flex-direction:column;gap:3px;}
   .modal-credits div{font-size:11.5px;color:var(--text-dim);}
   .credits-label{color:var(--text);font-weight:600;}
+  .person-link{color:var(--teal);cursor:pointer;text-decoration:none;}
+  .person-link:hover{color:var(--gold);text-decoration:underline;}
+
+  .person-card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+    display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;transition:border-color .15s;
+  }
+  .person-card:hover{border-color:var(--gold-dim);}
+  .person-photo{width:56px;height:56px;border-radius:50%;object-fit:cover;flex:0 0 56px;background:#0f1216;}
+  .person-photo-placeholder{
+    width:56px;height:56px;border-radius:50%;flex:0 0 56px;background:#0f1216;
+    display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:22px;
+  }
+  .person-info{min-width:0;}
+  .person-name{font-family:'Fraunces';font-weight:600;font-size:15px;color:var(--text);}
+  .person-known{font-size:12px;color:var(--text-dim);margin-top:2px;}
+
+  .person-header{display:flex;gap:20px;padding:26px;border-bottom:1px solid var(--line);align-items:flex-start;}
+  .person-header-photo{width:120px;height:120px;border-radius:50%;object-fit:cover;flex:0 0 120px;background:#0f1216;}
+  .person-header-photo-placeholder{
+    width:120px;height:120px;border-radius:50%;flex:0 0 120px;background:#0f1216;
+    display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:36px;
+  }
+  .person-header-name{font-family:'Fraunces';font-weight:700;font-size:25px;margin-bottom:6px;}
+  .person-header-dept{font-size:12.5px;color:var(--teal);margin-bottom:4px;}
+  .person-header-bio{font-size:12.5px;color:var(--text-dim);margin-top:8px;line-height:1.5;max-height:80px;overflow-y:auto;}
+  .person-filmo-title{font-family:'Fraunces';font-weight:600;font-size:15px;margin:20px 26px 10px;}
+  .person-filmo-list{display:flex;flex-direction:column;gap:6px;padding:0 26px 26px;}
+  .person-filmo-item{
+    display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:8px;cursor:pointer;
+    transition:background .15s;
+  }
+  .person-filmo-item:hover{background:var(--bg-raised);}
+  .person-filmo-poster{width:40px;height:60px;border-radius:5px;object-fit:cover;flex:0 0 40px;background:#0f1216;}
+  .person-filmo-poster-placeholder{width:40px;height:60px;border-radius:5px;flex:0 0 40px;background:#0f1216;}
+  .person-filmo-info{flex:1;min-width:0;}
+  .person-filmo-title-text{font-size:13.5px;color:var(--text);font-weight:500;}
+  .person-filmo-meta{font-size:11.5px;color:var(--text-dim);margin-top:2px;}
+
   .modal-providers{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap;}
   .providers-label{font-size:10.5px;color:var(--text-dim);margin-right:2px;}
   .provider-logo{width:38px;height:38px;border-radius:8px;background:#fff;padding:2px;object-fit:contain;}
@@ -476,6 +515,7 @@
       <select id="mediaType">
         <option value="movie">Ταινίες</option>
         <option value="tv">Σειρές</option>
+        <option value="person">Ηθοποιοί/Σκηνοθέτες</option>
       </select>
     </div>
     <div class="field">
@@ -564,6 +604,13 @@
   <div class="modal auth-modal">
     <button class="modal-close" id="authClose">✕</button>
     <div id="authContent"></div>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="personOverlay">
+  <div class="modal">
+    <button class="modal-close" id="personClose">✕</button>
+    <div id="personContent"><div class="modal-loading">Φόρτωση...</div></div>
   </div>
 </div>
 
@@ -690,6 +737,9 @@ const els = {
   authContent: document.getElementById('authContent'),
   authClose: document.getElementById('authClose'),
   watchlistBtn: document.getElementById('watchlistBtn'),
+  personOverlay: document.getElementById('personOverlay'),
+  personContent: document.getElementById('personContent'),
+  personClose: document.getElementById('personClose'),
 };
 
 function applyViewMode(){
@@ -1042,8 +1092,11 @@ async function openModal(tmdbId, englishTitle){
       ? (credits.crew || []).find(c => c.job === 'Director')
       : null;
     const creators = state.mediaType === 'tv' ? (details.created_by || []) : [];
-    const directorNames = director ? director.name : (creators.length ? creators.map(c => c.name).join(', ') : null);
-    const topCast = (credits.cast || []).slice(0, 5).map(c => c.name).join(', ');
+    const personLink = (id, name) => `<span class="person-link" data-person-id="${id}" data-person-name="${(name||'').replace(/"/g,'&quot;')}">${name}</span>`;
+    const directorNames = director
+      ? personLink(director.id, director.name)
+      : (creators.length ? creators.map(c => personLink(c.id, c.name)).join(', ') : null);
+    const topCast = (credits.cast || []).slice(0, 5).map(c => personLink(c.id, c.name)).join(', ');
 
     const countries = (details.production_countries || []).map(c => c.name);
     const langCode = details.original_language;
@@ -1171,6 +1224,14 @@ async function openModal(tmdbId, englishTitle){
         const id = card.getAttribute('data-rec-id');
         const t = card.getAttribute('data-rec-title');
         openModal(id, t);
+      });
+    });
+
+    els.modalContent.querySelectorAll('.person-link').forEach(link => {
+      link.addEventListener('click', () => {
+        const pid = link.getAttribute('data-person-id');
+        const pname = link.getAttribute('data-person-name');
+        if(pid) openPersonModal_load(pid, pname);
       });
     });
 
@@ -1400,6 +1461,30 @@ async function runSearch(){
   state.ratingPool = null;
   state.omdbLimitReached = false;
   state.seenResultIds = new Set();
+
+  if(state.mediaType === 'person'){
+    const q = els.query.value.trim();
+    if(!q){
+      setState('empty', 'Γράψε το όνομα ενός ηθοποιού ή σκηνοθέτη για αναζήτηση.');
+      els.goBtn.disabled = false;
+      return;
+    }
+    try{
+      const data = await searchPeople(q, 1);
+      const people = (data.results || []).filter(p => p.profile_path || (p.known_for && p.known_for.length));
+      if(!people.length){
+        setState('empty', 'Δεν βρέθηκε κανείς με αυτό το όνομα.');
+        els.goBtn.disabled = false;
+        return;
+      }
+      els.resultCount.textContent = `${people.length} αποτελέσματα`;
+      renderPeopleResults(people);
+    }catch(e){
+      setState('error', 'Κάτι πήγε στραβά με την αναζήτηση προσώπου.');
+    }
+    els.goBtn.disabled = false;
+    return;
+  }
 
   try{
     let results, totalPages;
@@ -1729,6 +1814,112 @@ els.watchlistBtn.addEventListener('click', () => {
     renderWatchlistView();
   }
 });
+
+// ============================================================
+// Αναζήτηση Προσώπων (Ηθοποιοί/Σκηνοθέτες) & Φιλμογραφία
+// ============================================================
+
+function openPersonModal(){ els.personOverlay.classList.remove('hidden'); }
+function closePersonModal(){ els.personOverlay.classList.add('hidden'); }
+els.personClose.addEventListener('click', closePersonModal);
+els.personOverlay.addEventListener('click', (e) => { if(e.target === els.personOverlay) closePersonModal(); });
+
+function personPhotoUrl(path){
+  return path ? `https://image.tmdb.org/t/p/w185${path}` : null;
+}
+
+async function searchPeople(query, page){
+  return tmdbFetch('/search/person', { query, page, language: 'en-US' });
+}
+
+function renderPeopleResults(people){
+  els.results.innerHTML = '';
+  people.forEach(person => {
+    const card = document.createElement('div');
+    card.className = 'person-card';
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'button');
+    const photo = personPhotoUrl(person.profile_path);
+    const known = (person.known_for || []).map(k => k.title || k.name).filter(Boolean).slice(0, 3).join(', ');
+    card.innerHTML = `
+      ${photo ? `<img class="person-photo" src="${photo}" alt="${person.name}" loading="lazy">` : `<div class="person-photo-placeholder">👤</div>`}
+      <div class="person-info">
+        <div class="person-name">${person.name}</div>
+        <div class="person-known">${person.known_for_department === 'Directing' ? 'Σκηνοθέτης/τρια' : person.known_for_department === 'Acting' ? 'Ηθοποιός' : (person.known_for_department || '')}${known ? ' · ' + known : ''}</div>
+      </div>
+    `;
+    card.addEventListener('click', () => openPersonModal_load(person.id, person.name));
+    els.results.appendChild(card);
+  });
+}
+
+async function openPersonModal_load(personId, fallbackName){
+  els.personContent.innerHTML = '<div class="modal-loading">Φόρτωση...</div>';
+  openPersonModal();
+  try{
+    const data = await tmdbFetch(`/person/${personId}`, { append_to_response: 'combined_credits', language: 'en-US' });
+    const photo = personPhotoUrl(data.profile_path);
+    const deptLabel = data.known_for_department === 'Directing' ? 'Σκηνοθέτης/τρια' : data.known_for_department === 'Acting' ? 'Ηθοποιός' : (data.known_for_department || '');
+    const bio = data.biography ? data.biography.slice(0, 400) + (data.biography.length > 400 ? '…' : '') : '';
+
+    const credits = (data.combined_credits && [...(data.combined_credits.cast || []), ...(data.combined_credits.crew || [])]) || [];
+    const seen = new Set();
+    const filmo = credits.filter(c => {
+      const key = c.media_type + ':' + c.id;
+      if(seen.has(key)) return false;
+      seen.add(key);
+      return c.poster_path || c.title || c.name;
+    }).sort((a, b) => {
+      const da = a.release_date || a.first_air_date || '';
+      const db = b.release_date || b.first_air_date || '';
+      return db.localeCompare(da);
+    }).slice(0, 40);
+
+    els.personContent.innerHTML = `
+      <div class="person-header">
+        ${photo ? `<img class="person-header-photo" src="${photo}" alt="${data.name}">` : `<div class="person-header-photo-placeholder">👤</div>`}
+        <div>
+          <div class="person-header-name">${data.name || fallbackName}</div>
+          <div class="person-header-dept">${deptLabel}</div>
+          ${bio ? `<div class="person-header-bio">${bio}</div>` : ''}
+        </div>
+      </div>
+      <div class="person-filmo-title">Φιλμογραφία</div>
+      <div class="person-filmo-list">
+        ${filmo.map(c => {
+          const t = c.title || c.name || '';
+          const d = c.release_date || c.first_air_date || '';
+          const y = d ? d.slice(0,4) : '—';
+          const role = c.character ? `ως ${c.character}` : (c.job || '');
+          const poster = posterUrl(c.poster_path);
+          return `
+            <div class="person-filmo-item" data-filmo-id="${c.id}" data-filmo-type="${c.media_type}" data-filmo-title="${t.replace(/"/g,'&quot;')}">
+              ${poster ? `<img class="person-filmo-poster" src="${poster}" alt="${t}" loading="lazy">` : `<div class="person-filmo-poster-placeholder"></div>`}
+              <div class="person-filmo-info">
+                <div class="person-filmo-title-text">${t}</div>
+                <div class="person-filmo-meta">${y}${role ? ' · ' + role : ''}</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    els.personContent.querySelectorAll('.person-filmo-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const id = el.getAttribute('data-filmo-id');
+        const mt = el.getAttribute('data-filmo-type');
+        const t = el.getAttribute('data-filmo-title');
+        if(mt !== 'movie' && mt !== 'tv') return;
+        closePersonModal();
+        state.mediaType = mt;
+        openModal(id, t);
+      });
+    });
+  }catch(e){
+    els.personContent.innerHTML = '<div class="modal-loading">Δεν φορτώθηκαν τα στοιχεία. Δοκίμασε ξανά.</div>';
+  }
+}
 
 applyViewMode();
 loadGenres();
