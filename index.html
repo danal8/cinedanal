@@ -1335,8 +1335,15 @@ async function fetchRawPage(page, overrideSortBy){
   } else if(isTrending){
     data = await tmdbFetch(`/trending/${state.mediaType}/week`, { page, language: 'en-US' });
   } else {
+    // Το TMDb θέλει διαφορετικό όνομα πεδίου στο sort_by ανάλογα με τον τύπο όταν
+    // ταξινομείς με ημερομηνία: "primary_release_date" για ταινίες, "first_air_date" για σειρές.
+    // Αν στείλουμε το λάθος όνομα, το TMDb το αγνοεί σιωπηλά και επιστρέφει απλά δημοφιλή αποτελέσματα.
+    let actualSortBy = sortMode;
+    if(!isRatingSort && sortMode === 'primary_release_date.desc' && state.mediaType === 'tv'){
+      actualSortBy = 'first_air_date.desc';
+    }
     const params = {
-      sort_by: isRatingSort ? 'vote_count.desc' : sortMode,
+      sort_by: isRatingSort ? 'vote_count.desc' : actualSortBy,
       page,
       'vote_count.gte': isRatingSort ? 100 : 20,
       language: 'en-US',
