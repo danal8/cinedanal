@@ -1454,6 +1454,12 @@ function needsPool(){
 }
 
 async function runSearch(){
+  // Σημαντικό: επαναφέρουμε πάντα το mediaType σε ό,τι δείχνει το dropdown "Τύπος".
+  // Το state.mediaType αλλάζει προσωρινά όταν ανοίγεις ένα popup τίτλου/φιλμογραφίας
+  // (για να δείξει το σωστό είδος εκείνου του τίτλου) — χωρίς αυτό το reset, μια
+  // επόμενη αναζήτηση θα μπορούσε να "κολλήσει" στον τύπο του τελευταίου popup
+  // αντί για αυτόν που πραγματικά έχεις επιλεγμένο.
+  state.mediaType = els.mediaType.value;
   state.viewingWatchlist = false;
   updateWatchlistBtn();
   els.previewNotice.classList.add('hidden');
