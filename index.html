@@ -1493,8 +1493,8 @@ function needsPool(){
 }
 
 async function runSearch(){
-  els.query.blur(); // κλείνει το πληκτρολόγιο κινητού πριν σκρολάρουμε, αλλιώς μπλοκάρει το scroll-to-top
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  els.query.blur(); // κλείνει το πληκτρολόγιο κινητού, αλλιώς μπλοκάρει το scroll
+  window.scrollTo(0, 0); // άμεσο (όχι smooth) ώστε να μη διακόπτεται από κάτι ενδιάμεσο
   // Σημαντικό: επαναφέρουμε πάντα το mediaType σε ό,τι δείχνει το dropdown "Τύπος".
   // Το state.mediaType αλλάζει προσωρινά όταν ανοίγεις ένα popup τίτλου/φιλμογραφίας
   // (για να δείξει το σωστό είδος εκείνου του τίτλου) — χωρίς αυτό το reset, μια
@@ -1530,6 +1530,7 @@ async function runSearch(){
       }
       els.resultCount.textContent = `${people.length} αποτελέσματα`;
       renderPeopleResults(people);
+      window.scrollTo(0, 0);
     }catch(e){
       setState('error', 'Κάτι πήγε στραβά με την αναζήτηση προσώπου.');
     }
@@ -1568,6 +1569,7 @@ async function runSearch(){
     els.resultCount.textContent = `${results.length} αποτελέσματα (σελίδα 1 από ${totalPages})`;
     renderResultsSkeleton(results);
     enrichWithImdb(results);
+    window.scrollTo(0, 0);
 
     if(state.currentPage < state.totalPages){
       els.loadMoreRow.style.display = 'flex';
@@ -2036,6 +2038,7 @@ function renderSuggestions(items){
   if(!items.length){
     els.suggestDropdown.innerHTML = '<div class="suggest-empty">Δεν βρέθηκαν αποτελέσματα.</div>';
     els.suggestDropdown.classList.remove('hidden');
+    els.suggestDropdown.scrollTop = 0;
     return;
   }
   els.suggestDropdown.innerHTML = items.map((it, i) => `
@@ -2060,11 +2063,17 @@ function renderSuggestions(items){
     });
   });
   els.suggestDropdown.classList.remove('hidden');
+  els.suggestDropdown.scrollTop = 0; // πάντα από την κορυφή του dropdown, κάθε νέα αναζήτηση
 }
 
+let queryWasEmpty = true;
 els.query.addEventListener('input', () => {
   const q = els.query.value.trim();
   els.queryClearBtn.classList.toggle('hidden', !els.query.value);
+  if(queryWasEmpty && q.length >= 1){
+    els.query.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  queryWasEmpty = q.length === 0;
   clearTimeout(suggestTimer);
   if(q.length < 2){ hideSuggestions(); return; }
   const myToken = ++suggestAbortToken;
