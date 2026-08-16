@@ -1493,6 +1493,7 @@ function needsPool(){
 }
 
 async function runSearch(){
+  window.scrollTo({ top: 0, behavior: 'smooth' });
   // Σημαντικό: επαναφέρουμε πάντα το mediaType σε ό,τι δείχνει το dropdown "Τύπος".
   // Το state.mediaType αλλάζει προσωρινά όταν ανοίγεις ένα popup τίτλου/φιλμογραφίας
   // (για να δείξει το σωστό είδος εκείνου του τίτλου) — χωρίς αυτό το reset, μια
