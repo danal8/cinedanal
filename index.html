@@ -672,6 +672,33 @@ function advanceOmdbKey(){
 }
 const WATCHMODE_API_KEY = 'wm_tiO3meyIX-Um4VNrt4OR00aG4gob2_BDMDRrU_S9278';
 
+// --- IMDb rating cache (localStorage, 14 μέρες TTL) ---
+// Αποφεύγει επανάληψη OMDb calls για τίτλους που έχουν ήδη ζητηθεί.
+const IMDB_CACHE_KEY = 'cinedanal_imdb_cache_v1';
+const IMDB_CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+let imdbCache = null;
+function loadImdbCache(){
+  if(imdbCache) return imdbCache;
+  try{
+    imdbCache = JSON.parse(localStorage.getItem(IMDB_CACHE_KEY)) || {};
+  }catch(e){
+    imdbCache = {};
+  }
+  return imdbCache;
+}
+function getCachedRating(mediaType, tmdbId){
+  const cache = loadImdbCache();
+  const entry = cache[`${mediaType}:${tmdbId}`];
+  if(!entry) return undefined;
+  if(Date.now() - entry.ts > IMDB_CACHE_TTL_MS){ delete cache[`${mediaType}:${tmdbId}`]; return undefined; }
+  return { imdbRating: entry.r, metascore: entry.m };
+}
+function setCachedRating(mediaType, tmdbId, imdbRating, metascore){
+  const cache = loadImdbCache();
+  cache[`${mediaType}:${tmdbId}`] = { r: imdbRating, m: metascore, ts: Date.now() };
+  try{ localStorage.setItem(IMDB_CACHE_KEY, JSON.stringify(cache)); }catch(e){ /* quota exceeded, αγνόησέ το */ }
+}
+
 const HIDDEN_LANGS = ['hi','ta','te','ml','kn','bn','pa','mr','gu','ko','ja','zh','cn']; // Ινδικές γλώσσες + Κορεατικά + Ιαπωνικά + Κινεζικά
 
 const state = {
@@ -1076,28 +1103,41 @@ async function enrichWithImdb(items){
     const t = item.title || item.name || '';
     const y = (item.release_date || item.first_air_date || '').slice(0,4);
     const itemMediaType = item._mediaTypeOverride || state.mediaType;
-    fetchRatingsByTitleYear(t, y).then(async (result) => {
+
+    const cached = getCachedRating(itemMediaType, item.id);
+    if(cached !== undefined){
+      applyImdbResult(item, cached.imdbRating, cached.metascore);
+      continue;
+    }
+
+    (async () => {
+      let result = await fetchRatingsByTitleYear(t, y);
       if(!result.imdbRating){
         // fallback: πιο ακριβής αναζήτηση μέσω πραγματικού IMDb ID (πιο αργό, μόνο όταν χρειάζεται)
         const fallback = await fetchRatings(item.id, itemMediaType);
         if(fallback.imdbRating || fallback.metascore) result = fallback;
       }
       const { imdbRating, metascore } = result;
-      const slot = document.querySelector(`[data-imdb-slot="${item.id}"]`);
-      const line = document.querySelector(`[data-imdb-line="${item.id}"]`);
-      const metaSlot = document.querySelector(`[data-meta-slot="${item.id}"]`);
-      const text = imdbRating ? `IMDb ${imdbRating}` : 'IMDb —';
-      if(slot){
-        slot.textContent = text;
-        if(imdbRating){ slot.classList.remove('pending'); slot.classList.add('imdb'); }
-      }
-      if(line){
-        line.innerHTML = `<span class="star">★</span> ${text}`;
-      }
-      if(metaSlot){
-        metaSlot.textContent = metascore ? `Metascore ${metascore}` : '';
-      }
-    });
+      setCachedRating(itemMediaType, item.id, imdbRating, metascore);
+      applyImdbResult(item, imdbRating, metascore);
+    })();
+  }
+}
+
+function applyImdbResult(item, imdbRating, metascore){
+  const slot = document.querySelector(`[data-imdb-slot="${item.id}"]`);
+  const line = document.querySelector(`[data-imdb-line="${item.id}"]`);
+  const metaSlot = document.querySelector(`[data-meta-slot="${item.id}"]`);
+  const text = imdbRating ? `IMDb ${imdbRating}` : 'IMDb —';
+  if(slot){
+    slot.textContent = text;
+    if(imdbRating){ slot.classList.remove('pending'); slot.classList.add('imdb'); }
+  }
+  if(line){
+    line.innerHTML = `<span class="star">★</span> ${text}`;
+  }
+  if(metaSlot){
+    metaSlot.textContent = metascore ? `Metascore ${metascore}` : '';
   }
 }
 
