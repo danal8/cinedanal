@@ -675,7 +675,8 @@ const WATCHMODE_API_KEY = 'wm_tiO3meyIX-Um4VNrt4OR00aG4gob2_BDMDRrU_S9278';
 // --- IMDb rating cache (localStorage, 14 μέρες TTL) ---
 // Αποφεύγει επανάληψη OMDb calls για τίτλους που έχουν ήδη ζητηθεί.
 const IMDB_CACHE_KEY = 'cinedanal_imdb_cache_v1';
-const IMDB_CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+const IMDB_CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // TTL για ratings που βρέθηκαν
+const IMDB_CACHE_MISS_TTL_MS = 1 * 24 * 60 * 60 * 1000; // TTL για "δεν βρέθηκε" — ξαναδοκίμασε σύντομα, μπορεί να ήταν προσωρινή αποτυχία
 let imdbCache = null;
 function loadImdbCache(){
   if(imdbCache) return imdbCache;
@@ -690,7 +691,8 @@ function getCachedRating(mediaType, tmdbId){
   const cache = loadImdbCache();
   const entry = cache[`${mediaType}:${tmdbId}`];
   if(!entry) return undefined;
-  if(Date.now() - entry.ts > IMDB_CACHE_TTL_MS){ delete cache[`${mediaType}:${tmdbId}`]; return undefined; }
+  const ttl = entry.r ? IMDB_CACHE_TTL_MS : IMDB_CACHE_MISS_TTL_MS;
+  if(Date.now() - entry.ts > ttl){ delete cache[`${mediaType}:${tmdbId}`]; return undefined; }
   return { imdbRating: entry.r, metascore: entry.m };
 }
 function setCachedRating(mediaType, tmdbId, imdbRating, metascore){
