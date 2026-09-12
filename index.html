@@ -272,6 +272,7 @@
   .list-mode .rating-line.meta-line{color:#6cb35a;font-size:13px;min-height:16px;margin-top:0;}
   .list-mode .rating-line.meta-line:empty{display:none;}
   .list-mode .rating-line.tmdb-line{color:var(--text-dim);font-size:12px;opacity:.75;margin-top:0;}
+  .release-status{color:var(--teal);font-size:11.5px;margin-top:3px;}
 
   .poster-wrap{position:relative;aspect-ratio:2/3;background:#0f1216;}
   .poster-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -558,7 +559,7 @@
         <option value="trending" selected>Trending τώρα</option>
         <option value="imdb_rating">Βαθμολογία IMDb</option>
         <option value="metascore">Metascore</option>
-        <option value="primary_release_date.desc">Νεότερες</option>
+        <option value="primary_release_date.desc">Νέες κυκλοφορίες</option>
       </select>
     </div>
     <button type="button" id="filtersToggleBtn" class="filters-toggle-btn">
@@ -702,6 +703,12 @@ function setCachedRating(mediaType, tmdbId, imdbRating, metascore){
 }
 
 const HIDDEN_LANGS = ['hi','ta','te','ml','kn','bn','pa','mr','gu','ko','ja','zh','cn']; // Ινδικές γλώσσες + Κορεατικά + Ιαπωνικά + Κινεζικά
+const EXCLUDED_TV_GENRE_IDS = new Set([
+  10767, // Talk
+  10764, // Reality
+  10763, // News
+  10766, // Soap
+]);
 
 const state = {
   genres: {},
@@ -709,7 +716,9 @@ const state = {
   mediaType: 'movie',
   viewMode: 'list',
   currentPage: 1,
+  sourcePage: 1,
   totalPages: 1,
+  hasMoreResults: false,
   lastQuery: '',
   lastResults: [],
   omdbLimitReached: false,
@@ -966,6 +975,15 @@ function posterUrl(path){
   return path ? `https://image.tmdb.org/t/p/w342${path}` : null;
 }
 
+function isTvNewReleaseMode(){
+  return state.mediaType === 'tv' && els.sortBy.value === 'primary_release_date.desc';
+}
+
+function formatReleaseDate(date){
+  if(!date) return '';
+  return new Intl.DateTimeFormat('el-GR', { day:'numeric', month:'short', year:'numeric' }).format(new Date(`${date}T12:00:00`));
+}
+
 function renderResultsSkeleton(items, append=false){
   if(!append) { els.results.innerHTML = ''; state.rankCounter = (state.currentPage - 1) * 20; }
   items.forEach(item => {
@@ -983,6 +1001,7 @@ function renderResultsSkeleton(items, append=false){
     const itemMediaType = item._mediaTypeOverride || state.mediaType;
     const bkKey = wlKey(item.id, itemMediaType);
     const isSaved = state.watchlistIds.has(bkKey);
+    const releaseStatus = isTvNewReleaseMode() ? `<div class="release-status" data-release-status="${item.id}"></div>` : '';
 
     const card = document.createElement('div');
     card.className = 'card';
@@ -1005,6 +1024,7 @@ function renderResultsSkeleton(items, append=false){
             <span>${year}</span>
             <a href="${stremioUrl}" class="stremio-inline" title="Άνοιγμα στο Stremio" onclick="event.stopPropagation()">▶ Stremio</a>
           </div>
+          ${releaseStatus}
           <div class="rating-line imdb-line" data-imdb-line="${item.id}"><span class="star">★</span> ${imdbText}</div>
           <div class="rating-line meta-line" data-meta-slot="${item.id}">${metaText}</div>
           <div class="rating-line tmdb-line">TMDb ${item.vote_average ? item.vote_average.toFixed(1) : '—'}${voteCount ? ` · ${voteCount}` : ''}</div>
@@ -1020,6 +1040,29 @@ function renderResultsSkeleton(items, append=false){
       openModal(item.id, title);
     });
     els.results.appendChild(card);
+  });
+}
+
+async function enrichTvReleaseStatuses(items){
+  if(!isTvNewReleaseMode()) return;
+  const today = new Date().toISOString().slice(0, 10);
+  const statuses = await Promise.all(items.map(async item => {
+    try{
+      const details = await tmdbFetch(`/tv/${item.id}`, { language: 'en-US' });
+      const next = details.next_episode_to_air;
+      const last = details.last_episode_to_air;
+      if(next && next.air_date > today){
+        const isNewSeason = next.season_number > ((last && last.season_number) || 0);
+        return `${isNewSeason ? 'Νέα σεζόν' : 'Επόμενο επεισόδιο'}: ${formatReleaseDate(next.air_date)}`;
+      }
+      if(details.in_production) return 'Η νέα σεζόν δεν έχει κυκλοφορήσει ακόμη';
+      return 'Δεν έχει ανακοινωθεί νέα σεζόν';
+    }catch(e){
+      return '';
+    }
+  }));
+  items.forEach((item, index) => {
+    document.querySelectorAll(`[data-release-status="${item.id}"]`).forEach(el => el.textContent = statuses[index]);
   });
 }
 
@@ -1266,7 +1309,11 @@ async function openModal(tmdbId, englishTitle){
         ${state.mediaType === 'tv' && details.seasons && details.seasons.length ? `
           <div class="modal-recs-title">Επεισόδια</div>
           <select id="seasonSelect" class="season-select">
-            ${details.seasons.filter(s => s.season_number > 0).map(s => `<option value="${s.season_number}">${s.name || 'Σεζόν ' + s.season_number}</option>`).join('')}
+            ${details.seasons.filter(s => s.season_number > 0).map(s => {
+              const seasonName = s.name || 'Σεζόν ' + s.season_number;
+              const releaseDate = s.air_date ? ` · ${fmtFullDate(s.air_date)}` : '';
+              return `<option value="${s.season_number}">${seasonName}${releaseDate}</option>`;
+            }).join('')}
           </select>
           <div id="episodesList" class="episodes-list"><div class="modal-loading">Φόρτωση επεισοδίων...</div></div>
         ` : ''}
@@ -1392,9 +1439,15 @@ function setState(mode, msg){
 }
 
 function filterLanguages(results){
-  if(state.langFilter) return results.filter(r => r.original_language === state.langFilter);
-  if(els.showIndianKorean.checked) return results;
-  return results.filter(r => !HIDDEN_LANGS.includes(r.original_language));
+  // Αποκλείουμε τηλεοπτικές εκπομπές και ριάλιτι από κάθε προβολή τίτλων.
+  // Το φίλτρο εφαρμόζεται πρώτα ώστε να ισχύει και όταν επιλεγεί γλώσσα.
+  let filtered = results.filter(r => {
+    if(state.mediaType !== 'tv') return true;
+    return !(r.genre_ids || []).some(id => EXCLUDED_TV_GENRE_IDS.has(id));
+  });
+  if(state.langFilter) return filtered.filter(r => r.original_language === state.langFilter);
+  if(els.showIndianKorean.checked) return filtered;
+  return filtered.filter(r => !HIDDEN_LANGS.includes(r.original_language));
 }
 
 async function fetchRawPage(page, overrideSortBy){
@@ -1402,12 +1455,18 @@ async function fetchRawPage(page, overrideSortBy){
   const sortMode = overrideSortBy || els.sortBy.value;
   const isRatingSort = sortMode === 'imdb_rating' || sortMode === 'metascore';
   const isTrending = sortMode === 'trending';
-  const useClientFilters = !!q || isTrending;
+  const isNewReleases = sortMode === 'primary_release_date.desc';
+  // Οι σειρές με νέα επεισόδια δεν ταξινομούνται σωστά από το discover API
+  // με βάση την ημερομηνία πρώτης προβολής. Το on_the_air περιλαμβάνει και
+  // παλιές σειρές που επέστρεψαν με νέα σεζόν.
+  const useClientFilters = !!q || isTrending || (isNewReleases && state.mediaType === 'tv');
   let data;
   if(q){
     data = await tmdbFetch(`/search/${state.mediaType}`, { query: q, page, language: 'en-US' });
   } else if(isTrending){
     data = await tmdbFetch(`/trending/${state.mediaType}/week`, { page, language: 'en-US' });
+  } else if(isNewReleases && state.mediaType === 'tv'){
+    data = await tmdbFetch('/tv/on_the_air', { page, language: 'en-US' });
   } else {
     // Το TMDb θέλει διαφορετικό όνομα πεδίου στο sort_by ανάλογα με τον τύπο όταν
     // ταξινομείς με ημερομηνία: "primary_release_date" για ταινίες, "first_air_date" για σειρές.
@@ -1419,7 +1478,9 @@ async function fetchRawPage(page, overrideSortBy){
     const params = {
       sort_by: isRatingSort ? 'vote_count.desc' : actualSortBy,
       page,
-      'vote_count.gte': isRatingSort ? 100 : 20,
+      // Στις νέες κυκλοφορίες χαμηλώνουμε το όριο ώστε να φαίνονται έγκαιρα
+      // οι πολύ πρόσφατοι τίτλοι, χωρίς να εμφανίζονται εντελώς άγνωστες καταχωρίσεις.
+      'vote_count.gte': isRatingSort ? 100 : (isNewReleases ? 5 : 20),
       language: 'en-US',
     };
     if(state.selectedGenres.size) params.with_genres = Array.from(state.selectedGenres).join(',');
@@ -1466,6 +1527,29 @@ async function fetchRawPage(page, overrideSortBy){
   }
 
   return { results, totalPages: data.total_pages || 1 };
+}
+
+// Η πηγή επιστρέφει 20 σειρές κάθε φορά, αλλά μετά τα προσωπικά φίλτρα
+// μπορεί να μείνουν πολύ λίγες. Συνεχίζουμε σε επόμενες σελίδες μέχρι να
+// γεμίσει μια κανονική λίστα 20 τίτλων.
+async function fetchTvNewReleaseBatch(startPage){
+  const results = [];
+  const seen = new Set();
+  let sourcePage = startPage;
+  let totalPages = Number.MAX_SAFE_INTEGER;
+  const maxPagesToRead = 5;
+  while(results.length < 20 && sourcePage <= totalPages && sourcePage < startPage + maxPagesToRead){
+    const pageData = await fetchRawPage(sourcePage);
+    totalPages = pageData.totalPages;
+    pageData.results.forEach(item => {
+      if(!seen.has(item.id) && results.length < 20){
+        seen.add(item.id);
+        results.push(item);
+      }
+    });
+    sourcePage += 1;
+  }
+  return { results, totalPages, nextSourcePage: sourcePage };
 }
 
 const RATING_POOL_PAGES = 8; // ~160 πιο γνωστοί τίτλοι — σταθερή δεξαμενή
@@ -1551,6 +1635,8 @@ async function runSearch(){
   els.resultCount.textContent = '';
   els.loadMoreRow.style.display = 'none';
   state.currentPage = 1;
+  state.sourcePage = 1;
+  state.hasMoreResults = false;
   state.ratingPool = null;
   state.omdbLimitReached = false;
   state.seenResultIds = new Set();
@@ -1587,6 +1673,12 @@ async function runSearch(){
       state.ratingPool = pool;
       results = pool.slice(0, 20);
       totalPages = Math.max(1, Math.ceil(pool.length / 20));
+    } else if(isTvNewReleaseMode()){
+      const batch = await fetchTvNewReleaseBatch(state.sourcePage);
+      results = batch.results;
+      totalPages = batch.totalPages;
+      state.sourcePage = batch.nextSourcePage;
+      state.hasMoreResults = state.sourcePage <= totalPages;
     } else {
       ({ results, totalPages } = await fetchRawPage(1));
     }
@@ -1608,12 +1700,15 @@ async function runSearch(){
     }
 
     els.results.innerHTML = '';
-    els.resultCount.textContent = `${results.length} αποτελέσματα (σελίδα 1 από ${totalPages})`;
+    els.resultCount.textContent = isTvNewReleaseMode()
+      ? `${results.length} νέες κυκλοφορίες`
+      : `${results.length} αποτελέσματα (σελίδα 1 από ${totalPages})`;
     renderResultsSkeleton(results);
     enrichWithImdb(results);
+    enrichTvReleaseStatuses(results);
     window.scrollTo(0, 0);
 
-    if(state.currentPage < state.totalPages){
+    if(isTvNewReleaseMode() ? state.hasMoreResults : state.currentPage < state.totalPages){
       els.loadMoreRow.style.display = 'flex';
     }
   }catch(e){
@@ -1632,6 +1727,11 @@ async function loadMore(){
     if(needsPool() && state.ratingPool){
       const start = (state.currentPage - 1) * 20;
       results = state.ratingPool.slice(start, start + 20);
+    } else if(isTvNewReleaseMode()){
+      const batch = await fetchTvNewReleaseBatch(state.sourcePage);
+      results = batch.results;
+      state.sourcePage = batch.nextSourcePage;
+      state.hasMoreResults = state.sourcePage <= batch.totalPages;
     } else {
       ({ results } = await fetchRawPage(state.currentPage));
     }
@@ -1643,8 +1743,11 @@ async function loadMore(){
     state.lastResults = state.lastResults.concat(results);
     renderResultsSkeleton(results, true);
     enrichWithImdb(results);
-    els.resultCount.textContent = `${state.lastResults.length} αποτελέσματα (σελίδα ${state.currentPage} από ${state.totalPages})`;
-    if(state.currentPage >= state.totalPages){
+    enrichTvReleaseStatuses(results);
+    els.resultCount.textContent = isTvNewReleaseMode()
+      ? `${state.lastResults.length} νέες κυκλοφορίες`
+      : `${state.lastResults.length} αποτελέσματα (σελίδα ${state.currentPage} από ${state.totalPages})`;
+    if(isTvNewReleaseMode() ? !state.hasMoreResults : state.currentPage >= state.totalPages){
       els.loadMoreRow.style.display = 'none';
     }
   }catch(e){
@@ -1990,6 +2093,7 @@ async function openPersonModal_load(personId, fallbackName){
     }
     const seen = new Set();
     const filmo = creditsSource.filter(c => {
+      if(c.media_type === 'tv' && (c.genre_ids || []).some(id => EXCLUDED_TV_GENRE_IDS.has(id))) return false;
       const key = c.media_type + ':' + c.id;
       if(seen.has(key)) return false;
       seen.add(key);
