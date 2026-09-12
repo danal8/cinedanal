@@ -1539,17 +1539,43 @@ async function fetchTvNewReleaseBatch(startPage){
   let totalPages = Number.MAX_SAFE_INTEGER;
   const maxPagesToRead = 5;
   while(results.length < 20 && sourcePage <= totalPages && sourcePage < startPage + maxPagesToRead){
-    const pageData = await fetchRawPage(sourcePage);
-    totalPages = pageData.totalPages;
-    pageData.results.forEach(item => {
+    const [premieres, onAir] = await Promise.all([
+      fetchTvPremierePage(sourcePage),
+      fetchRawPage(sourcePage),
+    ]);
+    totalPages = Math.max(premieres.totalPages, onAir.totalPages);
+    const addItems = (items, limit=20) => items.forEach(item => {
+      if(results.length >= limit) return;
       if(!seen.has(item.id) && results.length < 20){
         seen.add(item.id);
         results.push(item);
       }
     });
+    // Προτεραιότητα στις ολοκαίνουργιες σειρές, αλλά κρατάμε χώρο και για
+    // παλιές σειρές που έχουν νέο ή επερχόμενο επεισόδιο.
+    addItems(premieres.results, 15);
+    addItems(onAir.results);
+    addItems(premieres.results);
     sourcePage += 1;
   }
   return { results, totalPages, nextSourcePage: sourcePage };
+}
+
+async function fetchTvPremierePage(page){
+  const today = new Date().toISOString().slice(0, 10);
+  const params = {
+    sort_by: 'first_air_date.desc',
+    page,
+    'vote_count.gte': 5,
+    'first_air_date.lte': today,
+    language: 'en-US',
+  };
+  if(state.selectedGenres.size) params.with_genres = Array.from(state.selectedGenres).join(',');
+  if(state.langFilter) params.with_original_language = state.langFilter;
+  if(els.dateFrom.value) params['first_air_date.gte'] = `${els.dateFrom.value}-01-01`;
+  if(els.dateTo.value) params['first_air_date.lte'] = `${els.dateTo.value}-12-31`;
+  const data = await tmdbFetch('/discover/tv', params);
+  return { results: filterLanguages(data.results || []), totalPages: data.total_pages || 1 };
 }
 
 const RATING_POOL_PAGES = 8; // ~160 πιο γνωστοί τίτλοι — σταθερή δεξαμενή
