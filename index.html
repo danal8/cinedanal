@@ -1055,8 +1055,7 @@ async function enrichTvReleaseStatuses(items){
         const isNewSeason = next.season_number > ((last && last.season_number) || 0);
         return `${isNewSeason ? 'Νέα σεζόν' : 'Επόμενο επεισόδιο'}: ${formatReleaseDate(next.air_date)}`;
       }
-      if(details.in_production) return 'Η νέα σεζόν δεν έχει κυκλοφορήσει ακόμη';
-      return 'Δεν έχει ανακοινωθεί νέα σεζόν';
+      return '';
     }catch(e){
       return '';
     }
