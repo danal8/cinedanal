@@ -520,6 +520,81 @@
     .credits-label{font-size:15px;}
     .person-link{padding:3px 2px;display:inline-block;}
   }
+
+  /* Mobile search and detail views. Result-card rules remain unchanged. */
+  .mobile-type-tabs{display:none;}
+  @media(max-width:640px){
+    .wrap > header{margin-bottom:12px;padding-bottom:0;border:0;}
+    .tagline,.brand .reel{display:none;}
+    .brand-row{flex-wrap:nowrap;gap:8px;}
+    .brand-row .brand{min-width:0;}
+    .brand-row h1{font-size:26px;}
+    .profile-btn{min-height:44px;max-width:48%;overflow:hidden;text-overflow:ellipsis;font-size:13px;}
+    .controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:8px;margin:0;background:none;border:0;padding:0;border-radius:0;align-items:center;}
+    .controls .search-field{grid-column:1/-1;grid-row:1;min-width:0;padding-right:50px;}
+    .controls > .field > label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;}
+    .controls .type-field{display:none;}
+    .controls .mobile-type-tabs{grid-column:1/-1;grid-row:2;display:flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--bg-raised);}
+    .mobile-type-tabs button{flex:1;min-width:0;min-height:44px;border:0;border-radius:7px;background:transparent;color:var(--text-dim);font:500 14px 'IBM Plex Sans',sans-serif;cursor:pointer;}
+    .mobile-type-tabs button[aria-pressed=true]{background:var(--gold);color:#1a1200;font-weight:600;}
+    .controls #query{height:48px;font-size:16px;padding:10px 44px 10px 12px;}
+    .query-clear-btn{width:44px;height:44px;right:0;}
+    .controls #goBtn{grid-column:2;grid-row:1;justify-self:end;width:44px;height:48px;padding:0;font-size:0;}
+    .controls #goBtn::after{content:'➜';font-size:24px;}
+    .controls .sort-field{grid-column:2;grid-row:3;min-width:0;}
+    .controls .sort-field #sortBy{width:100%;min-width:0;height:44px;font-size:16px;padding:8px;}
+    .controls .filters-toggle-btn{grid-column:1;grid-row:3;min-height:44px;font-size:14px;}
+    .controls #advancedFilters{grid-column:1/-1;grid-row:4;}
+    .controls #advancedFilters.open{margin:0;gap:14px 10px;padding:12px;}
+    #advancedFilters > .field > label{font-size:12px;white-space:normal;}
+    #advancedFilters .field input:not([type=checkbox]),#advancedFilters .field select,#advancedFilters .field .genre-filter-btn{min-height:44px;font-size:16px;}
+    #advancedFilters .genre-chips-panel{position:static;width:100%;max-width:100%;margin-top:8px;}
+    #advancedFilters .field:has(#genreFilterBtn){flex-basis:100%;}
+    #advancedFilters .chip{min-height:40px;display:inline-flex;align-items:center;font-size:14px;}
+    .controls #clearBtn{display:none;grid-column:1/-1;grid-row:5;min-height:44px;}
+    .controls:has(#advancedFilters.open) #clearBtn{display:block;}
+    .preview-notice{display:none!important;}
+    .active-filters-row:empty{display:none;}
+    .meta-row{margin:12px 0;gap:8px;}
+    .meta-row .count{font-size:12px;min-width:0;overflow-wrap:anywhere;}
+    .meta-row > div{gap:4px!important;flex-shrink:0;}
+    .meta-row .view-label{display:none;}
+    .meta-row .watchlist-toggle-btn{height:44px;min-width:44px;justify-content:center;padding:0 8px;}
+    .meta-row .view-toggle{height:44px;}
+    .meta-row .view-toggle button{min-width:40px;padding:0 8px;font-size:18px;}
+    body:has(#modalOverlay:not(.hidden)),body:has(#personOverlay:not(.hidden)){overflow:hidden;}
+    #modalOverlay,#personOverlay{padding:0;width:100vw;height:100vh;height:100dvh;align-items:stretch;}
+    :is(#modalOverlay,#personOverlay) > .modal{width:100vw;max-width:none;height:100vh;height:100dvh;max-height:none;margin:0;border:0;border-radius:0;overscroll-behavior:contain;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom);}
+    :is(#modalOverlay,#personOverlay) .modal-close-wrap{height:calc(56px + env(safe-area-inset-top));background:var(--card);border-bottom:1px solid var(--line);}
+    :is(#modalOverlay,#personOverlay) .modal-close{top:calc(6px + env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));width:44px;height:44px;font-size:22px;}
+    :is(#modalOverlay,#personOverlay) .modal-hero{padding:20px;gap:20px;}
+    #modalOverlay .modal-hero img.modal-poster-img,#modalOverlay .modal-hero .noimg{width:min(56vw,220px);align-self:center;flex:none;height:auto;aspect-ratio:2/3;object-fit:cover;}
+    #modalOverlay .modal-hero > div{min-width:0;}
+    #modalOverlay .modal-title{font-size:28px;line-height:1.2;overflow-wrap:anywhere;margin-bottom:10px;}
+    #modalOverlay :is(.modal-meta,.modal-greek-title,.modal-genres){font-size:15px;line-height:1.6;}
+    #modalOverlay .modal-badges{flex-wrap:wrap;gap:8px;}
+    #modalOverlay .badge{font-size:14px;padding:6px 9px;}
+    #modalOverlay .modal-body{padding:20px;}
+    #modalOverlay .modal-overview{font-size:17px;line-height:1.75;}
+    #modalOverlay .modal-recs-title{font-size:21px;margin-top:26px;}
+    #modalOverlay :is(.trailer-link,.netflix-link,.season-select){min-height:44px;font-size:16px;max-width:100%;}
+    #modalOverlay .providers-label{font-size:14px;}
+    #modalOverlay .provider-chip{font-size:14px;}
+    #modalOverlay .episodes-list{max-height:none;overflow:visible;gap:6px;}
+    #modalOverlay .episode-row{flex-wrap:wrap;font-size:15px;min-height:52px;}
+    #modalOverlay .episode-title{white-space:normal;min-width:40%;}
+    #modalOverlay .episode-stremio{font-size:14px;min-height:44px;display:inline-flex;align-items:center;}
+    #modalOverlay .rec-title{font-size:14px;line-height:1.4;}
+    #personOverlay .person-header{flex-direction:column;padding:20px;gap:18px;}
+    #personOverlay :is(.person-header-photo,.person-header-photo-placeholder){width:150px;height:150px;flex:none;align-self:center;}
+    #personOverlay .person-header-name{font-size:28px;line-height:1.25;overflow-wrap:anywhere;}
+    #personOverlay .person-header-dept{font-size:16px;}
+    #personOverlay .person-header-bio{font-size:17px;line-height:1.75;max-height:none;overflow:visible;}
+    #personOverlay .person-filmo-title{font-size:21px;margin:24px 20px 12px;}
+    #personOverlay .person-filmo-list{max-height:none;overflow:visible;padding:0 12px 24px;gap:10px;}
+    #personOverlay .person-filmo-title-text{font-size:17px;line-height:1.4;white-space:normal;}
+    #personOverlay .person-filmo-meta{font-size:14px;line-height:1.5;}
+  }
 </style>
 </head>
 <body>
@@ -537,15 +612,15 @@
   </header>
 
   <div class="controls">
-    <div class="field grow" style="position:relative;">
+    <div class="field grow search-field" style="position:relative;">
       <label for="query">Αναζήτηση τίτλου (προαιρετικό)</label>
       <div class="query-input-wrap">
-        <input type="text" id="query" placeholder="π.χ. Dune, Breaking Bad..." autocomplete="off">
+        <input type="text" id="query" enterkeyhint="search" aria-label="Αναζήτηση τίτλου ή προσώπου" placeholder="π.χ. Dune, Breaking Bad..." autocomplete="off">
         <button type="button" id="queryClearBtn" class="query-clear-btn hidden" title="Καθαρισμός">✕</button>
       </div>
       <div class="suggest-dropdown hidden" id="suggestDropdown"></div>
     </div>
-    <div class="field">
+    <div class="field type-field">
       <label for="mediaType">Τύπος</label>
       <select id="mediaType">
         <option value="movie">Ταινίες</option>
@@ -553,8 +628,8 @@
         <option value="person">Ηθοποιοί/Σκηνοθέτες</option>
       </select>
     </div>
-    <div class="field">
-      <label>Ταξινόμηση</label>
+    <div class="field sort-field">
+      <label for="sortBy">Ταξινόμηση</label>
       <select id="sortBy">
         <option value="trending" selected>Trending τώρα</option>
         <option value="imdb_rating">Βαθμολογία IMDb</option>
@@ -562,7 +637,12 @@
         <option value="primary_release_date.desc">Νέες κυκλοφορίες</option>
       </select>
     </div>
-    <button type="button" id="filtersToggleBtn" class="filters-toggle-btn">
+    <div class="mobile-type-tabs" role="group" aria-label="Τύπος αναζήτησης">
+      <button type="button" data-media-type="movie" aria-pressed="true">Ταινίες</button>
+      <button type="button" data-media-type="tv" aria-pressed="false">Σειρές</button>
+      <button type="button" data-media-type="person" aria-pressed="false">Πρόσωπα</button>
+    </div>
+    <button type="button" aria-expanded="false" aria-controls="advancedFilters" id="filtersToggleBtn" class="filters-toggle-btn">
       <svg class="filter-icon" viewBox="0 0 24 24" width="15" height="15"><line x1="4" y1="6" x2="20" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="7" y1="12" x2="17" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><line x1="10" y1="18" x2="14" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       Φίλτρα
     </button>
@@ -612,10 +692,10 @@
   <div class="meta-row">
     <span class="count" id="resultCount"></span>
     <div style="display:flex;gap:8px;">
-      <button id="watchlistBtn" class="watchlist-toggle-btn">🔖 Watchlist</button>
+      <button id="watchlistBtn" aria-label="Watchlist" title="Watchlist" class="watchlist-toggle-btn">🔖 <span class="view-label">Watchlist</span></button>
       <div class="view-toggle">
-        <button id="viewListBtn" class="active">☰ Λίστα</button>
-        <button id="viewGridBtn">▦ Πλακίδια</button>
+        <button id="viewListBtn" aria-label="Λίστα" title="Λίστα" class="active">☰ <span class="view-label">Λίστα</span></button>
+        <button id="viewGridBtn" aria-label="Πλακίδια" title="Πλακίδια">▦ <span class="view-label">Πλακίδια</span></button>
       </div>
     </div>
   </div>
@@ -630,7 +710,7 @@
 
 <div class="modal-overlay hidden" id="modalOverlay">
   <div class="modal">
-    <div class="modal-close-wrap"><button class="modal-close" id="modalClose">✕</button></div>
+    <div class="modal-close-wrap"><button class="modal-close" id="modalClose" aria-label="Κλείσιμο τίτλου" title="Κλείσιμο τίτλου">✕</button></div>
     <div id="modalContent"><div class="modal-loading">Φόρτωση...</div></div>
   </div>
 </div>
@@ -644,7 +724,7 @@
 
 <div class="modal-overlay hidden" id="personOverlay">
   <div class="modal">
-    <div class="modal-close-wrap"><button class="modal-close" id="personClose">✕</button></div>
+    <div class="modal-close-wrap"><button class="modal-close" id="personClose" aria-label="Κλείσιμο προσώπου" title="Κλείσιμο προσώπου">✕</button></div>
     <div id="personContent"><div class="modal-loading">Φόρτωση...</div></div>
   </div>
 </div>
@@ -888,6 +968,7 @@ els.minRating.addEventListener('input', () => {
 
 els.mediaType.addEventListener('change', async () => {
   state.mediaType = els.mediaType.value;
+  syncMobileTypeTabs();
   state.selectedGenres.clear();
   updateAgeLimitAvailability();
   await loadGenres();
@@ -1786,6 +1867,7 @@ async function loadMore(){
 function clearFilters(){
   els.query.value = '';
   els.mediaType.value = 'movie';
+  syncMobileTypeTabs();
   state.mediaType = 'movie';
   els.dateFrom.value = '';
   els.dateTo.value = '';
@@ -1812,6 +1894,7 @@ const advancedFilters = document.getElementById('advancedFilters');
 if(filtersToggleBtn && advancedFilters){
   filtersToggleBtn.addEventListener('click', () => {
     advancedFilters.classList.toggle('open');
+    filtersToggleBtn.setAttribute('aria-expanded', advancedFilters.classList.contains('open'));
   });
 }
 
@@ -2359,6 +2442,35 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+
+// Keep the native select and all existing search listeners as the source of truth.
+function syncMobileTypeTabs(){
+  updateSearchPlaceholder();
+  document.querySelectorAll('[data-media-type]').forEach(button => {
+    button.setAttribute('aria-pressed', button.dataset.mediaType === els.mediaType.value);
+  });
+}
+document.querySelectorAll('[data-media-type]').forEach(button => {
+  button.addEventListener('click', () => {
+    if(els.mediaType.value === button.dataset.mediaType) return;
+    els.mediaType.value = button.dataset.mediaType;
+    els.mediaType.dispatchEvent(new Event('change', {bubbles:true}));
+  });
+});
+function updateSearchPlaceholder(){
+  const labels = {
+    movie: 'Αναζήτηση ταινίας',
+    tv: 'Αναζήτηση σειράς',
+    person: 'Αναζήτηση προσώπου'
+  };
+  const label = labels[els.mediaType.value] || labels.movie;
+  els.query.placeholder = label + '…';
+  els.query.setAttribute('aria-label', label);
+}
+updateSearchPlaceholder();
+syncMobileTypeTabs();
+els.goBtn.setAttribute('aria-label','Αναζήτηση');
+els.goBtn.title = 'Αναζήτηση';
 </script>
 
 </body>
