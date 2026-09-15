@@ -551,6 +551,8 @@
     .controls #advancedFilters{grid-column:1/-1;grid-row:4;}
     .controls #advancedFilters.open{margin:0;gap:14px 10px;padding:12px;}
     #advancedFilters .apply-filters-btn{display:block;width:100%;min-height:44px;font-size:16px;}
+    #advancedFilters.keyboard-editing{padding-bottom:72px;}
+    #advancedFilters.keyboard-editing .apply-filters-btn{position:fixed;top:var(--filter-action-top);left:var(--filter-action-left);width:var(--filter-action-width);height:48px;z-index:45;box-shadow:0 0 0 8px var(--bg-raised),0 -8px 24px rgba(0,0,0,.4);}
     #advancedFilters > .field > label{font-size:12px;white-space:normal;}
     #advancedFilters .field input:not([type=checkbox]),#advancedFilters .field select,#advancedFilters .field .genre-filter-btn{min-height:44px;font-size:16px;}
     #advancedFilters .genre-chips-panel{position:static;width:100%;max-width:100%;margin-top:8px;}
@@ -1901,6 +1903,32 @@ applyFiltersBtn.type = 'button';
 applyFiltersBtn.className = 'go apply-filters-btn';
 applyFiltersBtn.textContent = 'Εφαρμογή φίλτρων';
 advancedFilters.appendChild(applyFiltersBtn);
+// Anchor the action to the visible viewport, above the mobile keyboard.
+function positionFilterAction(){
+  const editing = window.matchMedia('(max-width:640px)').matches &&
+    advancedFilters.classList.contains('open') &&
+    [els.dateFrom, els.dateTo].includes(document.activeElement);
+  advancedFilters.classList.toggle('keyboard-editing', editing);
+  if(!editing) return;
+  const viewport = window.visualViewport;
+  const rect = advancedFilters.getBoundingClientRect();
+  const bottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+  applyFiltersBtn.style.setProperty('--filter-action-top', `${Math.max(0, bottom - 64)}px`);
+  applyFiltersBtn.style.setProperty('--filter-action-left', `${rect.left + 12}px`);
+  applyFiltersBtn.style.setProperty('--filter-action-width', `${Math.max(0, rect.width - 24)}px`);
+}
+document.addEventListener('focusin', positionFilterAction);
+document.addEventListener('focusout', () => requestAnimationFrame(positionFilterAction));
+window.addEventListener('resize', positionFilterAction);
+window.addEventListener('scroll', positionFilterAction, {passive:true});
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', positionFilterAction);
+  window.visualViewport.addEventListener('scroll', positionFilterAction);
+}
+// Keep the button in place until its click is handled, even when focus changes.
+applyFiltersBtn.addEventListener('pointerdown', event => {
+  if(advancedFilters.classList.contains('keyboard-editing')) event.preventDefault();
+});
 applyFiltersBtn.addEventListener('click', async () => {
   if(els.goBtn.disabled) return;
   if(!els.dateFrom.reportValidity() || !els.dateTo.reportValidity()) return;
@@ -1910,6 +1938,8 @@ applyFiltersBtn.addEventListener('click', async () => {
     return;
   }
   applyFiltersBtn.disabled = true;
+  if(advancedFilters.contains(document.activeElement)) document.activeElement.blur();
+  positionFilterAction();
   applyFiltersBtn.textContent = 'Εφαρμογή…';
   try{
     await runSearch();
@@ -1922,6 +1952,7 @@ applyFiltersBtn.addEventListener('click', async () => {
 if(filtersToggleBtn && advancedFilters){
   filtersToggleBtn.addEventListener('click', () => {
     advancedFilters.classList.toggle('open');
+    positionFilterAction();
     filtersToggleBtn.setAttribute('aria-expanded', advancedFilters.classList.contains('open'));
   });
 }
@@ -1931,19 +1962,20 @@ els.sortBy.addEventListener('change', runSearch);
 els.loadMoreBtn.addEventListener('click', loadMore);
 
 async function autoLoadTrendingPreview(){
-  // Δωρεάν προεπισκόπηση: μόνο TMDb δεδομένα, ΚΑΘΟΛΟΥ κλήσεις στο OMDb.
-  // Μόλις ο χρήστης πατήσει "Αναζήτηση", η κανονική ροή (με IMDb) αναλαμβάνει κανονικά.
+  // Show trending titles immediately, then fill ratings using the existing cache/fallback.
   try{
-    const { results } = await fetchRawPage(1);
+    const { results, totalPages } = await fetchRawPage(1);
     if(!results.length) return;
     state.currentPage = 1;
+    state.totalPages = totalPages;
     state.lastResults = results;
     state.seenResultIds = new Set(results.map(r => r.id));
     els.results.innerHTML = '';
     els.resultCount.textContent = `${results.length} αποτελέσματα`;
     renderResultsSkeleton(results);
-    els.previewNotice.classList.remove('hidden');
-    // Σκόπιμα ΔΕΝ καλούμε enrichWithImdb εδώ.
+    els.loadMoreRow.style.display = state.currentPage < state.totalPages ? 'flex' : 'none';
+    els.previewNotice.classList.add('hidden');
+    enrichWithImdb(results);
   }catch(e){
     // αν αποτύχει, απλά μένει η αρχική κενή κατάσταση — καμία ζημιά
   }
