@@ -1871,8 +1871,11 @@ async function loadMore(){
   }
 }
 
-function clearFilters(){
+async function clearFilters(){
+  if(advancedFilters.contains(document.activeElement)) document.activeElement.blur();
   els.query.value = '';
+  els.queryClearBtn.classList.add('hidden');
+  hideSuggestions();
   els.mediaType.value = 'movie';
   syncMobileTypeTabs();
   state.mediaType = 'movie';
@@ -1889,10 +1892,14 @@ function clearFilters(){
   renderGenreChips();
   updateGenreFilterCount();
   els.genreChipsPanel.classList.add('hidden');
-  loadGenres();
+  advancedFilters.classList.remove('open', 'keyboard-editing');
+  filtersToggleBtn.setAttribute('aria-expanded', 'false');
+  positionFilterAction();
   els.loadMoreRow.style.display = 'none';
-  setState('empty', 'Επίλεξε φίλτρα και πάτα Αναζήτηση για να ξεκινήσεις.');
+  setState('loading');
   els.resultCount.textContent = '';
+  await loadGenres();
+  await autoLoadTrendingPreview();
 }
 els.clearBtn.addEventListener('click', clearFilters);
 
