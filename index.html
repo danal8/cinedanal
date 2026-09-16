@@ -1273,7 +1273,13 @@ function applyImdbResult(item, imdbRating, metascore){
   }
 }
 
-async function openModal(tmdbId, englishTitle){
+let clearQueryWhenTitleCloses = false;
+
+async function openModal(tmdbId, englishTitle, options = {}){
+  const wasClosed = els.modalOverlay.classList.contains('hidden');
+  if(wasClosed){
+    clearQueryWhenTitleCloses = options.fromLiveSearch === true;
+  }
   els.modalOverlay.classList.remove('hidden');
   if(!(history.state && history.state.cinedanalModal)){
     history.pushState({ cinedanalModal: true }, '');
@@ -1504,13 +1510,21 @@ async function openModal(tmdbId, englishTitle){
 
 function closeModal(fromPopState){
   els.modalOverlay.classList.add('hidden');
+  if(clearQueryWhenTitleCloses){
+    els.query.value = '';
+    els.queryClearBtn.classList.add('hidden');
+    hideSuggestions();
+    clearQueryWhenTitleCloses = false;
+  }
   if(!fromPopState && history.state && history.state.cinedanalModal){
     history.back();
   }
 }
 
 window.addEventListener('popstate', (e) => {
-  if(!els.modalOverlay.classList.contains('hidden')){
+  if(!els.modalOverlay.classList.contains('hidden') &&
+     els.personOverlay.classList.contains('hidden') &&
+     !(e.state && e.state.cinedanalModal)){
     closeModal(true);
   }
 });
@@ -2206,7 +2220,8 @@ function closePersonModal(fromPopState){
   }
 }
 window.addEventListener('popstate', (e) => {
-  if(!els.personOverlay.classList.contains('hidden')){
+  if(!els.personOverlay.classList.contains('hidden') &&
+     !(e.state && e.state.cinedanalPersonModal)){
     closePersonModal(true);
   }
 });
@@ -2380,7 +2395,7 @@ function renderSuggestions(items){
         openPersonModal_load(it.id, it.title);
       } else {
         state.mediaType = it.kind;
-        openModal(it.id, it.title);
+        openModal(it.id, it.title, { fromLiveSearch: true });
       }
     });
   });
