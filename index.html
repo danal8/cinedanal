@@ -2553,9 +2553,9 @@ function updateSearchPlaceholder(){
 updateSearchPlaceholder();
 syncMobileTypeTabs();
 
-// Στο κινητό, σύρε πάνω στη μπάρα Ταινίες / Σειρές / Πρόσωπα για αλλαγή τύπου.
-const mobileTypeTabs = document.querySelector('.mobile-type-tabs');
+// Στο κινητό, ένα οριζόντιο swipe οπουδήποτε στην κύρια οθόνη αλλάζει τύπο.
 let mediaSwipeStart = null;
+let suppressSwipeClickUntil = 0;
 function changeMediaTypeBySwipe(direction){
   if(!window.matchMedia('(max-width: 640px)').matches) return;
   const types = ['movie', 'tv', 'person'];
@@ -2565,23 +2565,33 @@ function changeMediaTypeBySwipe(direction){
   els.mediaType.value = types[nextIndex];
   els.mediaType.dispatchEvent(new Event('change', { bubbles: true }));
 }
-if(mobileTypeTabs){
-  mobileTypeTabs.addEventListener('touchstart', (event) => {
-    if(event.touches.length !== 1) return;
-    const touch = event.touches[0];
-    mediaSwipeStart = { x: touch.clientX, y: touch.clientY };
-  }, { passive: true });
-  mobileTypeTabs.addEventListener('touchend', (event) => {
-    if(!mediaSwipeStart || event.changedTouches.length !== 1) return;
-    const touch = event.changedTouches[0];
-    const dx = touch.clientX - mediaSwipeStart.x;
-    const dy = touch.clientY - mediaSwipeStart.y;
-    mediaSwipeStart = null;
-    if(Math.abs(dx) < 56 || Math.abs(dx) <= Math.abs(dy)) return;
-    changeMediaTypeBySwipe(dx < 0 ? 1 : -1);
-  }, { passive: true });
-  mobileTypeTabs.addEventListener('touchcancel', () => { mediaSwipeStart = null; }, { passive: true });
+function isOverlayOpen(){
+  return !els.modalOverlay.classList.contains('hidden') ||
+    !els.personOverlay.classList.contains('hidden') ||
+    !els.authOverlay.classList.contains('hidden');
 }
+document.addEventListener('touchstart', (event) => {
+  if(event.touches.length !== 1 || isOverlayOpen()) return;
+  const touch = event.touches[0];
+  mediaSwipeStart = { x: touch.clientX, y: touch.clientY };
+}, { passive: true });
+document.addEventListener('touchend', (event) => {
+  if(!mediaSwipeStart || event.changedTouches.length !== 1 || isOverlayOpen()) return;
+  const touch = event.changedTouches[0];
+  const dx = touch.clientX - mediaSwipeStart.x;
+  const dy = touch.clientY - mediaSwipeStart.y;
+  mediaSwipeStart = null;
+  if(Math.abs(dx) < 56 || Math.abs(dx) <= Math.abs(dy)) return;
+  suppressSwipeClickUntil = Date.now() + 350;
+  changeMediaTypeBySwipe(dx < 0 ? 1 : -1);
+}, { passive: true });
+document.addEventListener('touchcancel', () => { mediaSwipeStart = null; }, { passive: true });
+document.addEventListener('click', (event) => {
+  if(Date.now() > suppressSwipeClickUntil) return;
+  event.preventDefault();
+  event.stopPropagation();
+  suppressSwipeClickUntil = 0;
+}, true);
 els.goBtn.setAttribute('aria-label','Αναζήτηση');
 els.goBtn.title = 'Αναζήτηση';
 </script>
