@@ -752,7 +752,7 @@ const CINEDANAL_API_URL = 'https://odtbtugzilxsfqxlpofq.supabase.co/functions/v1
 // --- IMDb rating cache: local για ταχύτητα + κοινή Supabase cache στο Edge Function ---
 const IMDB_CACHE_KEY = 'cinedanal_imdb_cache_v2';
 const IMDB_CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
-const IMDB_CACHE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const IMDB_CACHE_MISS_TTL_MS = 1 * 24 * 60 * 60 * 1000;
 let imdbCache = null;
 function loadImdbCache(){
   if(imdbCache) return imdbCache;
