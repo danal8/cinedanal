@@ -411,7 +411,7 @@
   }
   .episode-num{font-family:'IBM Plex Mono';color:var(--text-dim);flex:0 0 30px;}
   .episode-title{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .episode-rating{font-family:'IBM Plex Mono';color:var(--teal);flex:0 0 auto;}
+  .episode-rating{font-family:'IBM Plex Mono';color:var(--teal);flex:0 0 auto;}\n  .episode-rating.imdb{color:var(--gold);font-weight:600;}
   .episode-stremio{
     color:var(--teal);text-decoration:none;font-size:10.5px;font-weight:600;flex:0 0 auto;
     opacity:.85;white-space:nowrap;
@@ -1404,9 +1404,15 @@ async function openModal(tmdbId, englishTitle, options = {}){
       const loadSeason = (seasonNumber) => {
         const listEl = document.getElementById('episodesList');
         listEl.innerHTML = '<div class="modal-loading">Φόρτωση επεισοδίων...</div>';
-        tmdbFetch(`/tv/${tmdbId}/season/${seasonNumber}`, { language: 'en-US' })
-          .then(seasonData => {
+        Promise.all([
+          tmdbFetch(`/tv/${tmdbId}/season/${seasonNumber}`, { language: 'en-US' }),
+          imdbId
+            ? cinedanalApi({ action: 'episodeRatings', imdbId, seasonNumber: Number(seasonNumber) }).catch(() => ({ episodes: [] }))
+            : Promise.resolve({ episodes: [] }),
+        ])
+          .then(([seasonData, imdbData]) => {
             const episodes = seasonData.episodes || [];
+            const imdbByEpisode = new Map((imdbData.episodes || []).map(ep => [Number(ep.episodeNumber), ep.imdbRating]));
             if(!episodes.length){
               listEl.innerHTML = '<div class="modal-loading">Δεν βρέθηκαν επεισόδια.</div>';
               return;
@@ -1415,12 +1421,17 @@ async function openModal(tmdbId, englishTitle, options = {}){
               const epStremioUrl = imdbId
                 ? `stremio:///detail/series/${imdbId}/${imdbId}:${seasonNumber}:${ep.episode_number}`
                 : null;
+              const imdbEpisodeRating = imdbByEpisode.get(Number(ep.episode_number));
+              const hasImdbRating = Number.isFinite(Number(imdbEpisodeRating));
+              const displayedRating = hasImdbRating
+                ? `IMDb ${Number(imdbEpisodeRating).toFixed(1)}`
+                : (ep.vote_average ? `TMDb ${ep.vote_average.toFixed(1)}` : '—');
               return `
               <div class="episode-row">
                 <span class="episode-num">Ε${ep.episode_number}</span>
                 <span class="episode-title">${ep.name || ''}</span>
                 ${epStremioUrl ? `<a href="${epStremioUrl}" class="episode-stremio" title="Άνοιγμα στο Stremio">▶ Stremio</a>` : ''}
-                <span class="episode-rating">★ ${ep.vote_average ? ep.vote_average.toFixed(1) : '—'}</span>
+                <span class="episode-rating${hasImdbRating ? ' imdb' : ''}">★ ${displayedRating}</span>
               </div>
             `;
             }).join('');

@@ -59,6 +59,56 @@ async function omdb(imdbId: string) {
   throw new Error("OMDB_LIMIT");
 }
 
+async function omdbSeason(imdbId: string, seasonNumber: number) {
+  for (const key of OMDB_KEYS) {
+    try {
+      const url = new URL("https://www.omdbapi.com/");
+      url.searchParams.set("i", imdbId);
+      url.searchParams.set("Season", String(seasonNumber));
+      url.searchParams.set("apikey", key);
+      const response = await fetch(url);
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (data.Response === "False" && /limit/i.test(data.Error || "")) continue;
+      if (data.Response === "False") return [];
+      return (data.Episodes || []).map((episode: any) => ({
+        episodeNumber: Number(episode.Episode),
+        imdbId: episode.imdbID || null,
+        imdbRating: episode.imdbRating && episode.imdbRating !== "N/A" ? Number(episode.imdbRating) : null,
+        title: episode.Title || "",
+      })).filter((episode: any) => Number.isInteger(episode.episodeNumber));
+    } catch (_) {}
+  }
+  throw new Error("OMDB_LIMIT");
+}
+
+async function episodeRatings(imdbId: string, seasonNumber: number) {
+  if (!/^tt\d+$/.test(imdbId) || !Number.isInteger(seasonNumber) || seasonNumber < 1 || seasonNumber > 100) {
+    throw new Error("INVALID_SEASON_REQUEST");
+  }
+  const { data: cached, error } = await supabase
+    .from("cinedanal_episode_rating_cache")
+    .select("episodes,fetched_at")
+    .eq("series_imdb_id", imdbId)
+    .eq("season_number", seasonNumber)
+    .maybeSingle();
+  if (error) throw error;
+  const ttl = cached && Array.isArray(cached.episodes) && cached.episodes.some((episode: any) => episode.imdbRating != null)
+    ? CACHE_OK_MS : CACHE_MISS_MS;
+  if (cached && Date.now() - new Date(cached.fetched_at).getTime() < ttl) {
+    return { episodes: cached.episodes || [], cached: true };
+  }
+  const episodes = await omdbSeason(imdbId, seasonNumber);
+  const { error: upsertError } = await supabase.from("cinedanal_episode_rating_cache").upsert({
+    series_imdb_id: imdbId,
+    season_number: seasonNumber,
+    episodes,
+    fetched_at: new Date().toISOString(),
+  }, { onConflict: "series_imdb_id,season_number" });
+  if (upsertError) console.error("episode cache upsert", upsertError.message);
+  return { episodes, cached: false };
+}
+
 type RatingItem = { tmdbId: number; mediaType: "movie" | "tv"; imdbId?: string | null };
 
 async function resolveRating(item: RatingItem) {
@@ -163,6 +213,7 @@ Deno.serve(async req => {
     const body = await req.json();
     if (body.action === "tmdb") return json(await tmdb(String(body.path || ""), body.params || {}));
     if (body.action === "ratings") return json({ results: await ratings(body.items || []) });
+    if (body.action === "episodeRatings") return json(await episodeRatings(String(body.imdbId || ""), Number(body.seasonNumber)));
     return json({ error: "UNKNOWN_ACTION" }, 400);
   } catch (error) {
     console.error(error);
