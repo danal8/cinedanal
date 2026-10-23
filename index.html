@@ -736,7 +736,7 @@
   </div>
 </div>
 
-<footer>CineDanal — δεδομένα από TMDb &amp; OMDb (IMDb ratings). Προσωπικό εργαλείο, όχι επίσημη εφαρμογή.</footer>
+<footer>CineDanal — δεδομένα από TMDb, OMDb και JustWatch. Αυτό το προϊόν χρησιμοποιεί το TMDb API, αλλά δεν υποστηρίζεται ούτε πιστοποιείται από το TMDb. Προσωπικό, μη εμπορικό εργαλείο.</footer>
 
 <script>
 // Αφαιρούμε εντελώς οποιοδήποτε service worker είχε καταχωρηθεί παλιότερα,
@@ -747,24 +747,12 @@ if('serviceWorker' in navigator){
   }).catch(() => {});
 }
 
-const TMDB_API_KEY = '4239ea4fdcba7a007d399f16f3e31207';
-const OMDB_API_KEYS = ['3a059ec3', 'd70891e6', 'f6c514c3', 'c1cfafa6', '9030493e', '7fcc7540']; // πρώτο το Patreon (unlimited), τα υπόλοιπα δωρεάν ως fallback
-let omdbKeyIndex = 0;
-function currentOmdbKey(){ return OMDB_API_KEYS[omdbKeyIndex]; }
-function advanceOmdbKey(){
-  if(omdbKeyIndex < OMDB_API_KEYS.length - 1){
-    omdbKeyIndex++;
-    return true;
-  }
-  return false; // εξαντλήθηκαν όλα τα κλειδιά
-}
-const WATCHMODE_API_KEY = 'wm_tiO3meyIX-Um4VNrt4OR00aG4gob2_BDMDRrU_S9278';
+const CINEDANAL_API_URL = 'https://odtbtugzilxsfqxlpofq.supabase.co/functions/v1/cinedanal-api';
 
-// --- IMDb rating cache (localStorage, 14 μέρες TTL) ---
-// Αποφεύγει επανάληψη OMDb calls για τίτλους που έχουν ήδη ζητηθεί.
-const IMDB_CACHE_KEY = 'cinedanal_imdb_cache_v1';
-const IMDB_CACHE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // TTL για ratings που βρέθηκαν
-const IMDB_CACHE_MISS_TTL_MS = 1 * 24 * 60 * 60 * 1000; // TTL για "δεν βρέθηκε" — ξαναδοκίμασε σύντομα, μπορεί να ήταν προσωρινή αποτυχία
+// --- IMDb rating cache: local για ταχύτητα + κοινή Supabase cache στο Edge Function ---
+const IMDB_CACHE_KEY = 'cinedanal_imdb_cache_v2';
+const IMDB_CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const IMDB_CACHE_MISS_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 let imdbCache = null;
 function loadImdbCache(){
   if(imdbCache) return imdbCache;
@@ -1002,17 +990,23 @@ async function getMovieCertification(tmdbId){
   }
 }
 
+async function cinedanalApi(body){
+  const res = await fetch(CINEDANAL_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: SUPA_KEY },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) throw new Error(data.error || 'CINEDANAL_API_' + res.status);
+  return data;
+}
+
 async function tmdbFetch(path, params={}){
-  const url = new URL(`https://api.themoviedb.org/3${path}`);
-  url.searchParams.set('api_key', TMDB_API_KEY);
-  url.searchParams.set('language', params.language || 'el-GR');
-  for(const [k,v] of Object.entries(params)){
-    if(k === 'language') continue;
-    if(v !== '' && v !== undefined && v !== null) url.searchParams.set(k, v);
-  }
-  const res = await fetch(url);
-  if(!res.ok) throw new Error('TMDB_ERROR_' + res.status);
-  return res.json();
+  return cinedanalApi({
+    action: 'tmdb',
+    path,
+    params: { language: params.language || 'el-GR', ...params },
+  });
 }
 
 async function loadGenres(){
@@ -1159,100 +1153,59 @@ function formatVoteCount(n){
   return String(n);
 }
 
-async function fetchWatchmodeProviders(tmdbId, mediaType){
-  try{
-    const searchField = mediaType === 'movie' ? 'tmdb_movie_id' : 'tmdb_tv_id';
-    const searchRes = await fetch(`https://api.watchmode.com/v1/search/?apiKey=${WATCHMODE_API_KEY}&search_field=${searchField}&search_value=${tmdbId}`);
-    const searchData = await searchRes.json();
-    const match = searchData.title_results && searchData.title_results[0];
-    if(!match) return null;
-    const sourcesRes = await fetch(`https://api.watchmode.com/v1/title/${match.id}/sources/?apiKey=${WATCHMODE_API_KEY}&regions=GR`);
-    const sources = await sourcesRes.json();
-    if(!Array.isArray(sources)) return null;
-    const relevant = sources.filter(s => s.region === 'GR' && (s.type === 'sub' || s.type === 'free'));
-    const seen = new Set();
-    const unique = [];
-    for(const s of relevant){
-      if(!seen.has(s.name)){ seen.add(s.name); unique.push(s.name); }
-    }
-    return unique.length ? unique : null;
-  }catch(e){
-    return null;
+async function fetchRatingsBatch(items){
+  if(!items.length) return [];
+  const payload = items.map(item => ({
+    tmdbId: Number(item.id),
+    mediaType: item._mediaTypeOverride || state.mediaType,
+    imdbId: item._imdbId || null,
+  }));
+  const all = [];
+  for(let i=0; i<payload.length; i+=60){
+    const data = await cinedanalApi({ action: 'ratings', items: payload.slice(i, i+60) });
+    all.push(...(data.results || []));
   }
+  return all;
 }
 
-async function omdbFetchJson(urlWithoutKey){
-  for(let attempt = 0; attempt < OMDB_API_KEYS.length; attempt++){
-    try{
-      const res = await fetch(`${urlWithoutKey}&apikey=${currentOmdbKey()}`);
-      const d = await res.json();
-      if(d.Response === 'False' && d.Error && /limit/i.test(d.Error)){
-        // αυτό το κλειδί τελείωσε το ημερήσιο όριό του, πέρνα στο επόμενο
-        if(advanceOmdbKey()) continue;
-        state.omdbLimitReached = true; // εξαντλήθηκαν όλα τα κλειδιά
-        return null;
-      }
-      return d;
-    }catch(e){
-      return null;
-    }
-  }
-  state.omdbLimitReached = true;
-  return null;
-}
-
-async function fetchRatingsByTitleYear(title, year){
-  const d = await omdbFetchJson(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}${year ? `&y=${year}` : ''}`);
-  if(!d || d.Response === 'False') return { imdbRating: null, metascore: null };
-  return {
-    imdbRating: d.imdbRating && d.imdbRating !== 'N/A' ? d.imdbRating : null,
-    metascore: d.Metascore && d.Metascore !== 'N/A' ? d.Metascore : null,
-  };
-}
-
-async function fetchRatings(tmdbId, mediaTypeOverride){
+async function fetchRatings(tmdbId, mediaTypeOverride, imdbId){
   try{
-    const mt = mediaTypeOverride || state.mediaType;
-    const extUrl = `https://api.themoviedb.org/3/${mt}/${tmdbId}/external_ids?api_key=${TMDB_API_KEY}`;
-    const extRes = await fetch(extUrl);
-    const ext = await extRes.json();
-    const imdbId = ext.imdb_id;
-    if(!imdbId) return { imdbRating: null, metascore: null };
-    const d = await omdbFetchJson(`https://www.omdbapi.com/?i=${imdbId}`);
-    if(!d || d.Response === 'False') return { imdbRating: null, metascore: null };
-    return {
-      imdbRating: d.imdbRating && d.imdbRating !== 'N/A' ? d.imdbRating : null,
-      metascore: d.Metascore && d.Metascore !== 'N/A' ? d.Metascore : null,
-    };
+    const [result] = await fetchRatingsBatch([{
+      id: Number(tmdbId),
+      _mediaTypeOverride: mediaTypeOverride || state.mediaType,
+      _imdbId: imdbId || null,
+    }]);
+    return result || { imdbRating: null, metascore: null };
   }catch(e){
     return { imdbRating: null, metascore: null };
   }
 }
 
 async function enrichWithImdb(items){
+  const missing = [];
   for(const item of items){
-    if(item._imdbRating !== undefined) continue; // ήδη φορτωμένο (ταξινόμηση IMDb/Metascore)
-    const t = item.title || item.name || '';
-    const y = (item.release_date || item.first_air_date || '').slice(0,4);
+    if(item._imdbRating !== undefined) continue;
     const itemMediaType = item._mediaTypeOverride || state.mediaType;
-
     const cached = getCachedRating(itemMediaType, item.id);
     if(cached !== undefined){
       applyImdbResult(item, cached.imdbRating, cached.metascore);
-      continue;
+    } else {
+      missing.push(item);
     }
-
-    (async () => {
-      let result = await fetchRatingsByTitleYear(t, y);
-      if(!result.imdbRating){
-        // fallback: πιο ακριβής αναζήτηση μέσω πραγματικού IMDb ID (πιο αργό, μόνο όταν χρειάζεται)
-        const fallback = await fetchRatings(item.id, itemMediaType);
-        if(fallback.imdbRating || fallback.metascore) result = fallback;
-      }
-      const { imdbRating, metascore } = result;
+  }
+  if(!missing.length) return;
+  try{
+    const ratings = await fetchRatingsBatch(missing);
+    missing.forEach((item, index) => {
+      const result = ratings[index] || {};
+      const imdbRating = result.imdbRating ?? null;
+      const metascore = result.metascore ?? null;
+      const itemMediaType = item._mediaTypeOverride || state.mediaType;
       setCachedRating(itemMediaType, item.id, imdbRating, metascore);
       applyImdbResult(item, imdbRating, metascore);
-    })();
+    });
+  }catch(e){
+    missing.forEach(item => applyImdbResult(item, null, null));
   }
 }
 
@@ -1286,7 +1239,10 @@ async function openModal(tmdbId, englishTitle, options = {}){
   }
   els.modalContent.innerHTML = '<div class="modal-loading">Φόρτωση...</div>';
   try{
-    const details = await tmdbFetch(`/${state.mediaType}/${tmdbId}`, { append_to_response: 'external_ids,credits' });
+    const details = await tmdbFetch(`/${state.mediaType}/${tmdbId}`, {
+      append_to_response: 'external_ids,credits,videos,recommendations,watch/providers,release_dates',
+      language: 'el-GR',
+    });
     const greekTitle = details.title || details.name;
     const title = englishTitle || greekTitle;
     const date = details.release_date || details.first_air_date || '';
@@ -1322,25 +1278,12 @@ async function openModal(tmdbId, englishTitle, options = {}){
     const imdbId = details.external_ids && details.external_ids.imdb_id;
     const showGreekTitle = greekTitle && greekTitle !== title;
 
-    const videosData = await tmdbFetch(`/${state.mediaType}/${tmdbId}/videos`, { language: 'en-US' }).catch(() => ({ results: [] }));
-    const videos = videosData.results || [];
-    const recsData = await tmdbFetch(`/${state.mediaType}/${tmdbId}/recommendations`, { language: 'en-US' }).catch(() => ({ results: [] }));
-    const recs = filterLanguages((recsData.results || [])).slice(0, 6);
-    const watchmodeProviders = await fetchWatchmodeProviders(tmdbId, state.mediaType);
-    let streamProviders = [];
-    let providerSource = null;
-    if(watchmodeProviders && watchmodeProviders.length){
-      streamProviders = watchmodeProviders;
-      providerSource = 'watchmode';
-    } else {
-      const providersData = await tmdbFetch(`/${state.mediaType}/${tmdbId}/watch/providers`).catch(() => ({ results: {} }));
-      const grProviders = (providersData.results && providersData.results.GR) || null;
-      const tmdbProviders = grProviders ? (grProviders.flatrate || grProviders.ads || []) : [];
-      if(tmdbProviders.length){
-        streamProviders = tmdbProviders;
-        providerSource = 'tmdb';
-      }
-    }
+    const videos = (details.videos && details.videos.results) || [];
+    const recs = filterLanguages((details.recommendations && details.recommendations.results) || []).slice(0, 6);
+    const providersData = details['watch/providers'] || { results: {} };
+    const grProviders = (providersData.results && providersData.results.GR) || null;
+    const streamProviders = grProviders ? (grProviders.flatrate || grProviders.ads || []) : [];
+    const providersLink = grProviders && grProviders.link ? grProviders.link : 'https://www.justwatch.com/gr';
     const trailer = videos.find(v => v.site === 'YouTube' && v.type === 'Trailer')
       || videos.find(v => v.site === 'YouTube' && v.type === 'Teaser')
       || videos.find(v => v.site === 'YouTube');
@@ -1348,11 +1291,15 @@ async function openModal(tmdbId, englishTitle, options = {}){
     const imdbUrl = imdbId ? `https://www.imdb.com/title/${imdbId}/` : null;
     const shareText = `${title} (${year})${imdbUrl ? ' — ' + imdbUrl : ''}`;
     const encodedShareText = encodeURIComponent(shareText);
-    const certification = state.mediaType === 'movie' ? await getMovieCertification(tmdbId) : null;
-    const hasNetflix = streamProviders.some(p => {
-      const name = providerSource === 'watchmode' ? p : (p.provider_name || '');
-      return /netflix/i.test(name);
-    });
+    const releaseDates = details.release_dates && details.release_dates.results;
+    const gbRelease = state.mediaType === 'movie' && releaseDates
+      ? releaseDates.find(r => r.iso_3166_1 === 'GB')
+      : null;
+    const certifiedRelease = gbRelease && gbRelease.release_dates
+      ? gbRelease.release_dates.find(r => r.certification)
+      : null;
+    const certification = certifiedRelease ? certifiedRelease.certification : null;
+    const hasNetflix = streamProviders.some(p => /netflix/i.test(p.provider_name || ''));
     const netflixUrl = `https://www.netflix.com/search?q=${encodeURIComponent(title)}`;
 
     els.modalContent.innerHTML = `
@@ -1379,9 +1326,8 @@ async function openModal(tmdbId, englishTitle, options = {}){
           ${streamProviders.length ? `
             <div class="modal-providers">
               <span class="providers-label">Διαθέσιμο σε (GR):</span>
-              ${providerSource === 'watchmode'
-                ? streamProviders.map(name => `<span class="provider-chip">${name}</span>`).join('')
-                : streamProviders.map(p => `<img src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt="${p.provider_name}" title="${p.provider_name}" class="provider-logo">`).join('')}
+              ${streamProviders.map(p => `<img src="https://image.tmdb.org/t/p/w92${p.logo_path}" alt="${p.provider_name}" title="${p.provider_name}" class="provider-logo">`).join('')}
+              <a href="${providersLink}" target="_blank" rel="noopener" class="providers-label">Στοιχεία: JustWatch</a>
             </div>
           ` : ''}
         </div>
@@ -1486,7 +1432,7 @@ async function openModal(tmdbId, englishTitle, options = {}){
     }
 
     if(imdbId){
-      fetchRatings(tmdbId).then(({ imdbRating, metascore }) => {
+      fetchRatings(tmdbId, state.mediaType, imdbId).then(({ imdbRating, metascore }) => {
         const badge = document.getElementById('modalImdbBadge');
         const metaBadge = document.getElementById('modalMetaBadge');
         if(badge){
@@ -1679,7 +1625,7 @@ async function fetchTvPremierePage(page){
   return { results: filterLanguages(data.results || []), totalPages: data.total_pages || 1 };
 }
 
-const RATING_POOL_PAGES = 8; // ~160 πιο γνωστοί τίτλοι — σταθερή δεξαμενή
+const RATING_POOL_PAGES = 3; // έως ~60 τίτλοι, για οικονομία στο δωρεάν ημερήσιο όριο
 
 async function fetchEnrichedPool(){
   const sortMode = els.sortBy.value;
@@ -1719,11 +1665,7 @@ async function fetchEnrichedPool(){
     }
   }
 
-  const ratings = await Promise.all(pool.map(r => {
-    const t = r.title || r.name || '';
-    const y = (r.release_date || r.first_air_date || '').slice(0,4);
-    return fetchRatingsByTitleYear(t, y);
-  }));
+  const ratings = await fetchRatingsBatch(pool);
   pool.forEach((r, i) => {
     r._imdbRating = ratings[i].imdbRating ? parseFloat(ratings[i].imdbRating) : null;
     r._metascore = ratings[i].metascore ? parseInt(ratings[i].metascore) : null;
