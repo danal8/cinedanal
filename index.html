@@ -1422,7 +1422,7 @@ async function openModal(tmdbId, englishTitle, options = {}){
                 ? `stremio:///detail/series/${imdbId}/${imdbId}:${seasonNumber}:${ep.episode_number}`
                 : null;
               const imdbEpisodeRating = imdbByEpisode.get(Number(ep.episode_number));
-              const hasImdbRating = Number.isFinite(Number(imdbEpisodeRating));
+              const hasImdbRating = Number.isFinite(Number(imdbEpisodeRating)) && Number(imdbEpisodeRating) > 0;
               const displayedRating = hasImdbRating
                 ? `IMDb ${Number(imdbEpisodeRating).toFixed(1)}`
                 : (ep.vote_average ? `TMDb ${ep.vote_average.toFixed(1)}` : '—');
