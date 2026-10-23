@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.95.0";
 const TMDB_KEY = Deno.env.get("TMDB_API_KEY")!;
 const OMDB_KEYS = (Deno.env.get("OMDB_API_KEYS") || "").split(",").map(v => v.trim()).filter(Boolean);
 const CACHE_OK_MS = 90 * 24 * 60 * 60 * 1000;
-const CACHE_MISS_MS = 7 * 24 * 60 * 60 * 1000;
+const CACHE_MISS_MS = 1 * 24 * 60 * 60 * 1000;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
