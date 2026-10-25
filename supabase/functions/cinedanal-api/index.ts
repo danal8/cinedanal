@@ -74,7 +74,7 @@ async function omdbSeason(imdbId: string, seasonNumber: number) {
       return (data.Episodes || []).map((episode: any) => ({
         episodeNumber: Number(episode.Episode),
         imdbId: episode.imdbID || null,
-        imdbRating: episode.imdbRating && episode.imdbRating !== "N/A" && Number(episode.imdbRating) > 0 ? Number(episode.imdbRating) : null,
+        imdbRating: episode.imdbRating && episode.imdbRating !== "N/A" ? Number(episode.imdbRating) : null,
         title: episode.Title || "",
       })).filter((episode: any) => Number.isInteger(episode.episodeNumber));
     } catch (_) {}

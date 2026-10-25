@@ -8,6 +8,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
+<script src="pwa-install.js" defer></script>
 <meta property="og:title" content="CineDanal — Αναζήτηση Ταινιών &amp; Σειρών">
 <meta property="og:description" content="Αναζήτηση ταινιών &amp; σειρών με φίλτρα είδους, χρονιάς και βαθμολογίας IMDb.">
 <meta property="og:image" content="icon-512.png">
@@ -52,6 +53,13 @@
     white-space:nowrap;
   }
   .profile-btn:hover{border-color:var(--gold-dim);}
+  .install-app{margin-top:12px;}
+  .install-app[hidden], .install-help[hidden]{display:none;}
+  .install-btn{background:var(--gold);color:#1a1200;border:1px solid var(--gold);border-radius:8px;padding:12px 18px;min-height:44px;font:600 14px 'IBM Plex Sans',sans-serif;cursor:pointer;}
+  .install-btn:hover{background:#f0c165;}
+  .install-btn:focus-visible{outline:2px solid var(--text);outline-offset:3px;}
+  .install-btn:disabled{opacity:.6;cursor:wait;}
+  .install-help{max-width:560px;margin:10px 0 0;padding:12px 14px;background:var(--bg-raised);border:1px solid var(--line);border-radius:8px;color:var(--text-dim);font-size:13px;line-height:1.6;}
   .watchlist-toggle-btn{
     background:var(--bg-raised);border:1px solid var(--line);color:var(--text-dim);
     padding:0 14px;height:38px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:'IBM Plex Sans';
@@ -616,6 +624,10 @@
       <button type="button" id="profileBtn" class="profile-btn">👤 Σύνδεση</button>
     </div>
     <p class="tagline">Αναζήτηση ταινιών &amp; σειρών με φίλτρα είδους, χρονιάς και βαθμολογίας IMDb.</p>
+    <div id="installApp" class="install-app" hidden>
+      <button type="button" id="installAppBtn" class="install-btn" aria-controls="installHelp" aria-expanded="false">↓ Εγκατάσταση εφαρμογής</button>
+      <p id="installHelp" class="install-help" role="status" hidden></p>
+    </div>
   </header>
 
   <div class="controls">
@@ -739,12 +751,9 @@
 <footer>CineDanal — δεδομένα από TMDb, OMDb και JustWatch. Αυτό το προϊόν χρησιμοποιεί το TMDb API, αλλά δεν υποστηρίζεται ούτε πιστοποιείται από το TMDb. Προσωπικό, μη εμπορικό εργαλείο.</footer>
 
 <script>
-// Αφαιρούμε εντελώς οποιοδήποτε service worker είχε καταχωρηθεί παλιότερα,
-// ώστε να μην "κολλάει" ποτέ σε παλιά έκδοση. Δεν αγγίζει τίποτα άλλο (δεδομένα, κλειδιά, κλπ).
+// Το sw.js δεν κάνει caching, οπότε οι ενημερώσεις παραμένουν άμεσες.
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    regs.forEach(reg => reg.unregister());
-  }).catch(() => {});
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
 const CINEDANAL_API_URL = 'https://odtbtugzilxsfqxlpofq.supabase.co/functions/v1/cinedanal-api';
