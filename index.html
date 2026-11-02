@@ -758,6 +758,18 @@ if('serviceWorker' in navigator){
 
 const CINEDANAL_API_URL = 'https://odtbtugzilxsfqxlpofq.supabase.co/functions/v1/cinedanal-api';
 
+const OFFICIAL_IMDB_RATINGS_URL = './data/imdb-ratings.json';
+let officialImdbRatingsPromise = null;
+function loadOfficialImdbRatings(){
+  if(!officialImdbRatingsPromise){
+    officialImdbRatingsPromise = fetch(OFFICIAL_IMDB_RATINGS_URL, { cache: 'no-cache' })
+      .then(response => response.ok ? response.json() : { ratings: {} })
+      .then(data => data && data.ratings ? data.ratings : {})
+      .catch(() => ({}));
+  }
+  return officialImdbRatingsPromise;
+}
+
 // --- IMDb rating cache: local για ταχύτητα + κοινή Supabase cache στο Edge Function ---
 const IMDB_CACHE_KEY = 'cinedanal_imdb_cache_v2';
 const IMDB_CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
@@ -1174,7 +1186,14 @@ async function fetchRatingsBatch(items){
     const data = await cinedanalApi({ action: 'ratings', items: payload.slice(i, i+60) });
     all.push(...(data.results || []));
   }
-  return all;
+  const officialRatings = await loadOfficialImdbRatings();
+  return all.map(result => {
+    const fallback = result && result.imdbId ? officialRatings[result.imdbId] : null;
+    if(result && result.imdbRating == null && fallback && fallback.r != null){
+      return { ...result, imdbRating: Number(fallback.r), officialDataset: true };
+    }
+    return result;
+  });
 }
 
 async function fetchRatings(tmdbId, mediaTypeOverride, imdbId){
