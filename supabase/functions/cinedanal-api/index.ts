@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.95.0";
 const TMDB_KEY = Deno.env.get("TMDB_API_KEY")!;
 const OMDB_KEYS = (Deno.env.get("OMDB_API_KEYS") || "").split(",").map(v => v.trim()).filter(Boolean);
 const CACHE_OK_MS = 90 * 24 * 60 * 60 * 1000;
-const CACHE_MISS_MS = 1 * 24 * 60 * 60 * 1000;
+const CACHE_MISS_MS = 15 * 60 * 1000; // πραγματικό miss: σύντομο retry για νέους τίτλους
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -13,6 +13,10 @@ const corsHeaders = {
 const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
 const serviceKey = secretKeys.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
+
+function isRetryableOmdbError(message: unknown) {
+  return /limit|api\s*key|apikey|unauthori[sz]ed|too many requests|temporar|network|service unavailable/i.test(String(message || ""));
+}
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -48,7 +52,7 @@ async function omdb(imdbId: string) {
       const response = await fetch(`https://www.omdbapi.com/?i=${encodeURIComponent(imdbId)}&apikey=${key}`);
       if (!response.ok) continue;
       const data = await response.json();
-      if (data.Response === "False" && /limit/i.test(data.Error || "")) continue;
+      if (data.Response === "False" && isRetryableOmdbError(data.Error)) continue;
       if (data.Response === "False") return { imdbRating: null, metascore: null };
       return {
         imdbRating: data.imdbRating && data.imdbRating !== "N/A" ? Number(data.imdbRating) : null,
@@ -56,7 +60,7 @@ async function omdb(imdbId: string) {
       };
     } catch (_) {}
   }
-  throw new Error("OMDB_LIMIT");
+  throw new Error("OMDB_UNAVAILABLE");
 }
 
 async function omdbSeason(imdbId: string, seasonNumber: number) {
@@ -69,7 +73,7 @@ async function omdbSeason(imdbId: string, seasonNumber: number) {
       const response = await fetch(url);
       if (!response.ok) continue;
       const data = await response.json();
-      if (data.Response === "False" && /limit/i.test(data.Error || "")) continue;
+      if (data.Response === "False" && isRetryableOmdbError(data.Error)) continue;
       if (data.Response === "False") return [];
       return (data.Episodes || []).map((episode: any) => ({
         episodeNumber: Number(episode.Episode),
@@ -79,7 +83,7 @@ async function omdbSeason(imdbId: string, seasonNumber: number) {
       })).filter((episode: any) => Number.isInteger(episode.episodeNumber));
     } catch (_) {}
   }
-  throw new Error("OMDB_LIMIT");
+  throw new Error("OMDB_UNAVAILABLE");
 }
 
 async function episodeRatings(imdbId: string, seasonNumber: number) {
@@ -183,7 +187,7 @@ async function ratings(items: RatingItem[]) {
   });
 
   if (fetched.length) {
-    const rows = fetched.map(item => ({
+    const rows = fetched.filter(item => !item.error).map(item => ({
       cache_key: item.cacheKey,
       media_type: item.mediaType,
       tmdb_id: item.tmdbId,
@@ -201,6 +205,7 @@ async function ratings(items: RatingItem[]) {
       imdbRating: item.imdbRating,
       metascore: item.metascore,
       cached: false,
+      transientError: Boolean(item.error),
     }));
   }
   return clean.map(item => resultMap.get(item.cacheKey));
