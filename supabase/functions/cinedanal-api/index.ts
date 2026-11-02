@@ -4,6 +4,9 @@ const TMDB_KEY = Deno.env.get("TMDB_API_KEY")!;
 const OMDB_KEYS = (Deno.env.get("OMDB_API_KEYS") || "").split(",").map(v => v.trim()).filter(Boolean);
 const CACHE_OK_MS = 90 * 24 * 60 * 60 * 1000;
 const CACHE_MISS_MS = 15 * 60 * 1000; // πραγματικό miss: σύντομο retry για νέους τίτλους
+const TRACKING_TOUCH_MS = 7 * 24 * 60 * 60 * 1000;
+const TRACKING_RETENTION_MS = 18 * 30 * 24 * 60 * 60 * 1000;
+const TRACKING_LIMIT = 50_000;
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -154,18 +157,22 @@ async function ratings(items: RatingItem[]) {
   const keys = [...new Set(clean.map(item => item.cacheKey))];
   const { data: cached, error } = await supabase
     .from("cinedanal_rating_cache")
-    .select("cache_key,media_type,tmdb_id,imdb_id,imdb_rating,metascore,fetched_at")
+    .select("cache_key,media_type,tmdb_id,imdb_id,imdb_rating,metascore,fetched_at,last_seen_at")
     .in("cache_key", keys);
   if (error) throw error;
   const cachedMap = new Map((cached || []).map(row => [row.cache_key, row]));
   const resultMap = new Map<string, any>();
   const missing: typeof clean = [];
+  const staleSeenKeys: string[] = [];
   const now = Date.now();
+  const seenAt = new Date(now).toISOString();
 
   for (const item of clean) {
     const row = cachedMap.get(item.cacheKey);
     const ttl = row && row.imdb_rating != null ? CACHE_OK_MS : CACHE_MISS_MS;
     if (row && now - new Date(row.fetched_at).getTime() < ttl) {
+      const lastSeen = new Date(row.last_seen_at || row.fetched_at).getTime();
+      if (!Number.isFinite(lastSeen) || now - lastSeen > TRACKING_TOUCH_MS) staleSeenKeys.push(item.cacheKey);
       resultMap.set(item.cacheKey, {
         tmdbId: item.tmdbId,
         mediaType: item.mediaType,
@@ -175,6 +182,14 @@ async function ratings(items: RatingItem[]) {
         cached: true,
       });
     } else missing.push(item);
+  }
+
+  if (staleSeenKeys.length) {
+    const { error: touchError } = await supabase
+      .from("cinedanal_rating_cache")
+      .update({ last_seen_at: seenAt })
+      .in("cache_key", staleSeenKeys);
+    if (touchError) console.error("rating cache touch", touchError.message);
   }
 
   const fetched = await mapLimit(missing, 5, async item => {
@@ -194,7 +209,8 @@ async function ratings(items: RatingItem[]) {
       imdb_id: item.imdbId || null,
       imdb_rating: item.imdbRating,
       metascore: item.metascore,
-      fetched_at: new Date().toISOString(),
+      fetched_at: seenAt,
+      last_seen_at: seenAt,
     }));
     const { error: upsertError } = await supabase.from("cinedanal_rating_cache").upsert(rows, { onConflict: "cache_key" });
     if (upsertError) console.error("cache upsert", upsertError.message);
@@ -211,6 +227,52 @@ async function ratings(items: RatingItem[]) {
   return clean.map(item => resultMap.get(item.cacheKey));
 }
 
+async function trackedRatingIds() {
+  const cutoff = new Date(Date.now() - TRACKING_RETENTION_MS).toISOString();
+  const { error: cleanupError } = await supabase
+    .from("cinedanal_rating_cache")
+    .delete()
+    .lt("last_seen_at", cutoff);
+  if (cleanupError) console.error("rating cache retention cleanup", cleanupError.message);
+
+  const { count, error: countError } = await supabase
+    .from("cinedanal_rating_cache")
+    .select("cache_key", { count: "exact", head: true });
+  if (countError) throw countError;
+
+  const overflow = Math.max(0, (count || 0) - TRACKING_LIMIT);
+  if (overflow) {
+    const { data: oldest, error: oldestError } = await supabase
+      .from("cinedanal_rating_cache")
+      .select("cache_key")
+      .order("last_seen_at", { ascending: true })
+      .limit(overflow);
+    if (oldestError) throw oldestError;
+    const oldKeys = (oldest || []).map(row => row.cache_key);
+    if (oldKeys.length) {
+      const { error: trimError } = await supabase
+        .from("cinedanal_rating_cache")
+        .delete()
+        .in("cache_key", oldKeys);
+      if (trimError) throw trimError;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from("cinedanal_rating_cache")
+    .select("imdb_id")
+    .not("imdb_id", "is", null)
+    .gte("last_seen_at", cutoff)
+    .order("last_seen_at", { ascending: false })
+    .limit(TRACKING_LIMIT);
+  if (error) throw error;
+
+  const ids = [...new Set((data || [])
+    .map(row => String(row.imdb_id || ""))
+    .filter(id => /^tt\d+$/.test(id)))];
+  return { ids, count: ids.length };
+}
+
 Deno.serve(async req => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "METHOD_NOT_ALLOWED" }, 405);
@@ -218,6 +280,7 @@ Deno.serve(async req => {
     const body = await req.json();
     if (body.action === "tmdb") return json(await tmdb(String(body.path || ""), body.params || {}));
     if (body.action === "ratings") return json({ results: await ratings(body.items || []) });
+    if (body.action === "trackedRatingIds") return json(await trackedRatingIds());
     if (body.action === "episodeRatings") return json(await episodeRatings(String(body.imdbId || ""), Number(body.seasonNumber)));
     return json({ error: "UNKNOWN_ACTION" }, 400);
   } catch (error) {
