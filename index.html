@@ -418,7 +418,9 @@
     border-radius:6px;font-size:12.5px;
   }
   .episode-num{font-family:'IBM Plex Mono';color:var(--text-dim);flex:0 0 30px;}
-  .episode-title{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .episode-info{flex:1;min-width:0;}
+  .episode-title{display:block;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .episode-date{display:block;margin-top:2px;font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-dim);white-space:nowrap;}
   .episode-rating{font-family:'IBM Plex Mono';color:var(--teal);flex:0 0 auto;}\n  .episode-rating.imdb{color:var(--gold);font-weight:600;}
   .episode-stremio{
     color:var(--teal);text-decoration:none;font-size:10.5px;font-weight:600;flex:0 0 auto;
@@ -597,7 +599,9 @@
     #modalOverlay .provider-chip{font-size:14px;}
     #modalOverlay .episodes-list{max-height:none;overflow:visible;gap:6px;}
     #modalOverlay .episode-row{flex-wrap:wrap;font-size:15px;min-height:52px;}
-    #modalOverlay .episode-title{white-space:normal;min-width:40%;}
+    #modalOverlay .episode-info{min-width:40%;}
+    #modalOverlay .episode-title{white-space:normal;}
+    #modalOverlay .episode-date{font-size:12px;margin-top:4px;}
     #modalOverlay .episode-stremio{font-size:14px;min-height:44px;display:inline-flex;align-items:center;}
     #modalOverlay .rec-title{font-size:14px;line-height:1.4;}
     #personOverlay .person-header{flex-direction:column;padding:20px;gap:18px;}
@@ -1457,7 +1461,10 @@ async function openModal(tmdbId, englishTitle, options = {}){
               return `
               <div class="episode-row">
                 <span class="episode-num">Ε${ep.episode_number}</span>
-                <span class="episode-title">${ep.name || ''}</span>
+                <span class="episode-info">
+                  <span class="episode-title">${ep.name || ''}</span>
+                  ${ep.air_date ? `<span class="episode-date">${fmtFullDate(ep.air_date)}</span>` : ''}
+                </span>
                 ${epStremioUrl ? `<a href="${epStremioUrl}" class="episode-stremio" title="Άνοιγμα στο Stremio">▶ Stremio</a>` : ''}
                 <span class="episode-rating${hasImdbRating ? ' imdb' : ''}">★ ${displayedRating}</span>
               </div>
