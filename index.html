@@ -303,7 +303,8 @@
   .rating-box{display:none;}
   .card-body{padding:12px 13px 14px;display:flex;flex-direction:column;gap:5px;flex:1;}
   .card-title{font-family:'Fraunces';font-weight:600;font-size:15.5px;line-height:1.25;}
-  .card-sub{font-size:12px;color:var(--text-dim);font-family:'IBM Plex Mono';}
+  .card-sub{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:12px;color:var(--text-dim);font-family:'IBM Plex Mono';}
+  .card-runtime{white-space:nowrap;color:var(--teal);}
 
   .state{padding:60px 20px;text-align:center;color:var(--text-dim);}
   .state .icon{font-size:32px;margin-bottom:10px;}
@@ -422,6 +423,7 @@
   .episode-info{flex:1;min-width:0;}
   .episode-title{display:block;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .episode-date{display:block;margin-top:2px;font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-dim);white-space:nowrap;}
+  .episode-runtime{display:block;margin-top:3px;font-family:'IBM Plex Mono';font-size:10.5px;color:var(--teal);white-space:nowrap;}
   .episode-rating{font-family:'IBM Plex Mono';color:var(--teal);flex:0 0 auto;}\n  .episode-rating.imdb{color:var(--gold);font-weight:600;}
   .episode-stremio{
     color:var(--teal);text-decoration:none;font-size:10.5px;font-weight:600;flex:0 0 auto;
@@ -1082,6 +1084,90 @@ function formatReleaseDate(date){
   return new Intl.DateTimeFormat('el-GR', { day:'numeric', month:'short', year:'numeric' }).format(new Date(`${date}T12:00:00`));
 }
 
+// Runtime cache for movie lengths and approximate TV episode lengths.
+const RUNTIME_CACHE_KEY = 'cinedanal_runtime_cache_v1';
+const RUNTIME_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const RUNTIME_CACHE_MISS_TTL_MS = 12 * 60 * 60 * 1000;
+let runtimeCache = null;
+function loadRuntimeCache(){
+  if(runtimeCache) return runtimeCache;
+  try{ runtimeCache = JSON.parse(localStorage.getItem(RUNTIME_CACHE_KEY)) || {}; }
+  catch(e){ runtimeCache = {}; }
+  if(typeof runtimeCache !== 'object' || Array.isArray(runtimeCache)) runtimeCache = {};
+  return runtimeCache;
+}
+function positiveRuntime(value){
+  const minutes = Number(value);
+  return Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : null;
+}
+function getTitleRuntimeMinutes(details, mediaType){
+  if(mediaType === 'movie') return positiveRuntime(details.runtime);
+  const typical = (details.episode_run_time || []).map(positiveRuntime).find(Boolean);
+  return typical || positiveRuntime(details.last_episode_to_air?.runtime)
+    || positiveRuntime(details.next_episode_to_air?.runtime) || null;
+}
+function formatTitleRuntime(minutes, mediaType){
+  if(!minutes) return '⏱ Διάρκεια —';
+  return mediaType === 'tv' ? `⏱ ≈${minutes} λεπτά/επεισόδιο` : `⏱ ${minutes} λεπτά`;
+}
+function getCachedRuntime(mediaType, tmdbId){
+  const cache = loadRuntimeCache();
+  const key = `${mediaType}:${tmdbId}`;
+  const entry = cache[key];
+  if(!entry) return undefined;
+  const ttl = entry.minutes ? RUNTIME_CACHE_TTL_MS : RUNTIME_CACHE_MISS_TTL_MS;
+  if(Date.now() - entry.ts > ttl){ delete cache[key]; return undefined; }
+  return entry.minutes || null;
+}
+function setCachedRuntime(mediaType, tmdbId, minutes){
+  const cache = loadRuntimeCache();
+  cache[`${mediaType}:${tmdbId}`] = { minutes: minutes || null, ts: Date.now() };
+  const keys = Object.keys(cache);
+  if(keys.length > 800){
+    keys.sort((a,b) => cache[a].ts - cache[b].ts).slice(0, 200).forEach(key => delete cache[key]);
+  }
+  try{ localStorage.setItem(RUNTIME_CACHE_KEY, JSON.stringify(cache)); }catch(e){}
+}
+function updateRuntimeCards(mediaType, tmdbId, minutes){
+  document.querySelectorAll(`[data-runtime-slot="${mediaType}:${tmdbId}"]`).forEach(el => {
+    el.textContent = formatTitleRuntime(minutes, mediaType);
+  });
+}
+async function enrichTitleMetadata(items){
+  // Most TMDb search/discover responses omit runtime. Fetch details only for
+  // visible results, with a small concurrency limit and a local cache.
+  const needsTvStatus = isTvNewReleaseMode();
+  const tasks = items.map(item => {
+    const mediaType = item._mediaTypeOverride || state.mediaType;
+    const cached = getCachedRuntime(mediaType, item.id);
+    if(cached !== undefined) updateRuntimeCards(mediaType, item.id, cached);
+    return { id: item.id, mediaType, cached };
+  }).filter(item => item.cached === undefined || (needsTvStatus && item.mediaType === 'tv'));
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(4, tasks.length) }, async () => {
+    while(next < tasks.length){
+      const item = tasks[next++];
+      try{
+        const details = await tmdbFetch(`/${item.mediaType}/${item.id}`, { language: 'en-US' });
+        const minutes = getTitleRuntimeMinutes(details, item.mediaType);
+        setCachedRuntime(item.mediaType, item.id, minutes);
+        updateRuntimeCards(item.mediaType, item.id, minutes);
+        if(needsTvStatus && item.mediaType === 'tv'){
+          const today = new Date().toISOString().slice(0, 10);
+          const nextEpisode = details.next_episode_to_air;
+          const lastEpisode = details.last_episode_to_air;
+          const label = nextEpisode && nextEpisode.air_date > today
+            ? `${nextEpisode.season_number > ((lastEpisode && lastEpisode.season_number) || 0) ? 'Νέα σεζόν' : 'Επόμενο επεισόδιο'}: ${formatReleaseDate(nextEpisode.air_date)}`
+            : '';
+          document.querySelectorAll(`[data-release-status="${item.id}"]`).forEach(el => { el.textContent = label; });
+        }
+      }catch(e){
+        // Do not cache a failed request as an unknown runtime.
+        if(item.cached === undefined) updateRuntimeCards(item.mediaType, item.id, null);
+      }
+    }
+  }));
+}
 function renderResultsSkeleton(items, append=false){
   if(!append) { els.results.innerHTML = ''; state.rankCounter = (state.currentPage - 1) * 20; }
   items.forEach(item => {
@@ -1104,6 +1190,8 @@ function renderResultsSkeleton(items, append=false){
     const bkKey = wlKey(item.id, itemMediaType);
     const isSaved = state.watchlistIds.has(bkKey);
     const releaseStatus = isTvNewReleaseMode() ? `<div class="release-status" data-release-status="${item.id}"></div>` : '';
+    const cachedRuntime = getCachedRuntime(itemMediaType, item.id);
+    const runtimeText = cachedRuntime === undefined ? '⏱ …' : formatTitleRuntime(cachedRuntime, itemMediaType);
 
     const card = document.createElement('div');
     card.className = 'card';
@@ -1124,6 +1212,7 @@ function renderResultsSkeleton(items, append=false){
           <div class="card-title"><span class="card-rank">${rank}.</span> ${title}</div>
           <div class="card-sub">
             <span>${year}</span>
+            <span class="card-runtime" data-runtime-slot="${itemMediaType}:${item.id}">${runtimeText}</span>
             <a href="${stremioUrl}" class="stremio-inline" title="Άνοιγμα στο Stremio" onclick="event.stopPropagation()">▶ Stremio</a>
           </div>
           ${upcomingStatus}
@@ -1143,28 +1232,6 @@ function renderResultsSkeleton(items, append=false){
       openModal(item.id, title);
     });
     els.results.appendChild(card);
-  });
-}
-
-async function enrichTvReleaseStatuses(items){
-  if(!isTvNewReleaseMode()) return;
-  const today = new Date().toISOString().slice(0, 10);
-  const statuses = await Promise.all(items.map(async item => {
-    try{
-      const details = await tmdbFetch(`/tv/${item.id}`, { language: 'en-US' });
-      const next = details.next_episode_to_air;
-      const last = details.last_episode_to_air;
-      if(next && next.air_date > today){
-        const isNewSeason = next.season_number > ((last && last.season_number) || 0);
-        return `${isNewSeason ? 'Νέα σεζόν' : 'Επόμενο επεισόδιο'}: ${formatReleaseDate(next.air_date)}`;
-      }
-      return '';
-    }catch(e){
-      return '';
-    }
-  }));
-  items.forEach((item, index) => {
-    document.querySelectorAll(`[data-release-status="${item.id}"]`).forEach(el => el.textContent = statuses[index]);
   });
 }
 
@@ -1300,9 +1367,12 @@ async function openModal(tmdbId, englishTitle, options = {}){
     const langCode = details.original_language;
     const LANG_NAMES = { en:'Αγγλικά', el:'Ελληνικά', fr:'Γαλλικά', de:'Γερμανικά', es:'Ισπανικά', it:'Ιταλικά', ja:'Ιαπωνικά', ko:'Κορεατικά', zh:'Κινεζικά', ru:'Ρωσικά', hi:'Χίντι', pt:'Πορτογαλικά', tr:'Τουρκικά', sv:'Σουηδικά', da:'Δανικά', no:'Νορβηγικά', pl:'Πολωνικά', nl:'Ολλανδικά' };
     const langName = LANG_NAMES[langCode] || langCode;
+    const runtimeMinutes = getTitleRuntimeMinutes(details, state.mediaType);
+    setCachedRuntime(state.mediaType, tmdbId, runtimeMinutes);
+    updateRuntimeCards(state.mediaType, tmdbId, runtimeMinutes);
     const runtime = state.mediaType === 'movie'
-      ? (details.runtime ? `${details.runtime} λεπτά` : '—')
-      : (details.number_of_seasons ? `${details.number_of_seasons} σεζόν, ${details.number_of_episodes || '?'} επεισόδια` : '—');
+      ? formatTitleRuntime(runtimeMinutes, 'movie')
+      : `${details.number_of_seasons || '—'} σεζόν, ${details.number_of_episodes || '?'} επεισόδια · ${formatTitleRuntime(runtimeMinutes, 'tv')}`;
     const imdbId = details.external_ids && details.external_ids.imdb_id;
     const showGreekTitle = greekTitle && greekTitle !== title;
 
@@ -1460,6 +1530,7 @@ async function openModal(tmdbId, englishTitle, options = {}){
                 <span class="episode-info">
                   <span class="episode-title">${ep.name || ''}</span>
                   ${ep.air_date ? `<span class="episode-date">${fmtFullDate(ep.air_date)}</span>` : ''}
+                  <span class="episode-runtime">⏱ ${positiveRuntime(ep.runtime) ? `${positiveRuntime(ep.runtime)} λεπτά` : (runtimeMinutes ? `≈${runtimeMinutes} λεπτά` : 'Διάρκεια —')}</span>
                 </span>
                 ${epStremioUrl ? `<a href="${epStremioUrl}" class="episode-stremio" title="Άνοιγμα στο Stremio">▶ Stremio</a>` : ''}
                 <span class="episode-rating${hasImdbRating ? ' imdb' : ''}">★ ${displayedRating}</span>
@@ -1816,7 +1887,7 @@ async function runSearch(){
       : `${results.length} αποτελέσματα (σελίδα 1 από ${totalPages})`;
     renderResultsSkeleton(results);
     enrichWithImdb(results);
-    enrichTvReleaseStatuses(results);
+    enrichTitleMetadata(results);
     window.scrollTo(0, 0);
 
     if(isTvNewReleaseMode() ? state.hasMoreResults : state.currentPage < state.totalPages){
@@ -1854,7 +1925,7 @@ async function loadMore(){
     state.lastResults = state.lastResults.concat(results);
     renderResultsSkeleton(results, true);
     enrichWithImdb(results);
-    enrichTvReleaseStatuses(results);
+    enrichTitleMetadata(results);
     els.resultCount.textContent = isTvNewReleaseMode()
       ? `${state.lastResults.length} νέες κυκλοφορίες`
       : `${state.lastResults.length} αποτελέσματα (σελίδα ${state.currentPage} από ${state.totalPages})`;
@@ -1981,6 +2052,7 @@ async function autoLoadTrendingPreview(){
     els.loadMoreRow.style.display = state.currentPage < state.totalPages ? 'flex' : 'none';
     els.previewNotice.classList.add('hidden');
     enrichWithImdb(results);
+    enrichTitleMetadata(results);
   }catch(e){
     // αν αποτύχει, απλά μένει η αρχική κενή κατάσταση — καμία ζημιά
   }
@@ -2163,6 +2235,7 @@ function renderWatchlistView(){
   }));
   renderResultsSkeleton(mappedItems);
   enrichWithImdb(mappedItems);
+  enrichTitleMetadata(mappedItems);
 }
 
 els.watchlistBtn.addEventListener('click', () => {
