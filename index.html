@@ -836,16 +836,6 @@ const PROFILE_STORAGE_KEY = 'cinedanal_profile';
 
 function wlKey(id, mediaType){ return `${mediaType}:${id}`; }
 
-async function supaWatchlistFetchNames(){
-  try{
-    const r = await fetch(`${SUPA_URL}/rest/v1/cinedanal_watchlist?select=profile_name`, {
-      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` }
-    });
-    const j = await r.json();
-    return Array.isArray(j) ? j.map(row => row.profile_name) : [];
-  }catch(e){ return []; }
-}
-
 async function supaWatchlistFetchProfile(name){
   try{
     const r = await fetch(`${SUPA_URL}/rest/v1/cinedanal_watchlist?profile_name=eq.${encodeURIComponent(name)}&select=*`, {
@@ -2005,20 +1995,17 @@ function closeAuthModal(){ els.authOverlay.classList.add('hidden'); }
 els.authClose.addEventListener('click', closeAuthModal);
 els.authOverlay.addEventListener('click', (e) => { if(e.target === els.authOverlay) closeAuthModal(); });
 
-async function renderAuthScreen(){
-  els.authContent.innerHTML = '<div class="modal-loading">Φόρτωση...</div>';
-  const names = await supaWatchlistFetchNames();
+function renderAuthScreen(){
   els.authContent.innerHTML = `
     <div class="auth-title">Σύνδεση σε προφίλ</div>
-    ${names.length ? `
-      <div class="auth-section">
-        <span class="auth-label">Υπάρχοντα προφίλ</span>
-        <div class="profile-pill-list" id="profilePillList">
-          ${names.map(n => `<button class="profile-pill" data-name="${n}">${n}</button>`).join('')}
-        </div>
-      </div>
-      <div class="auth-divider">ή</div>
-    ` : ''}
+    <div class="auth-section">
+      <span class="auth-label">Σύνδεση με υπάρχον προφίλ</span>
+      <input type="text" class="auth-input" id="loginProfileName" placeholder="Όνομα προφίλ" maxlength="20" autocomplete="username">
+      <input type="password" class="auth-input" id="loginPin" placeholder="4ψήφιο PIN" maxlength="4" inputmode="numeric" autocomplete="current-password">
+      <button class="auth-btn" id="loginBtn">Σύνδεση</button>
+      <div class="auth-error" id="loginError"></div>
+    </div>
+    <div class="auth-divider">ή</div>
     <div class="auth-section">
       <span class="auth-label">Δημιουργία νέου προφίλ</span>
       <input type="text" class="auth-input" id="newProfileName" placeholder="Όνομα (π.χ. Γιώργος)" maxlength="20">
@@ -2027,39 +2014,30 @@ async function renderAuthScreen(){
       <div class="auth-error" id="authError"></div>
     </div>
   `;
-  document.querySelectorAll('.profile-pill').forEach(pill => {
-    pill.addEventListener('click', () => promptPinLogin(pill.dataset.name));
+  document.getElementById('loginBtn').addEventListener('click', handleLoginProfile);
+  ['loginProfileName', 'loginPin'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', (e) => {
+      if(e.key === 'Enter') handleLoginProfile();
+    });
   });
   document.getElementById('createProfileBtn').addEventListener('click', handleCreateProfile);
 }
 
-function promptPinLogin(name){
-  els.authContent.innerHTML = `
-    <div class="auth-title">Σύνδεση: ${name}</div>
-    <div class="auth-section">
-      <span class="auth-label">PIN</span>
-      <input type="password" class="auth-input" id="loginPin" placeholder="4ψήφιο PIN" maxlength="4" inputmode="numeric" autofocus>
-      <button class="auth-btn" id="loginBtn">Σύνδεση</button>
-      <button class="auth-btn secondary" id="backToAuthBtn">← Πίσω</button>
-      <div class="auth-error" id="authError"></div>
-    </div>
-  `;
-  document.getElementById('backToAuthBtn').addEventListener('click', renderAuthScreen);
-  document.getElementById('loginBtn').addEventListener('click', async () => {
-    const pin = document.getElementById('loginPin').value.trim();
-    const errEl = document.getElementById('authError');
-    const row = await supaWatchlistFetchProfile(name);
-    if(row && row.pin === pin){
-      loginAs(name, row);
-    } else {
-      errEl.textContent = 'Λάθος PIN.';
-    }
-  });
-  document.getElementById('loginPin').addEventListener('keydown', (e) => {
-    if(e.key === 'Enter') document.getElementById('loginBtn').click();
-  });
+async function handleLoginProfile(){
+  const name = document.getElementById('loginProfileName').value.trim();
+  const pin = document.getElementById('loginPin').value.trim();
+  const errEl = document.getElementById('loginError');
+  if(!name || !/^\d{4}$/.test(pin)){
+    errEl.textContent = 'Βάλε όνομα προφίλ και 4ψήφιο PIN.';
+    return;
+  }
+  const row = await supaWatchlistFetchProfile(name);
+  if(row && row.pin === pin){
+    loginAs(name, row);
+  } else {
+    errEl.textContent = 'Λάθος όνομα ή PIN.';
+  }
 }
-
 async function handleCreateProfile(){
   const name = document.getElementById('newProfileName').value.trim();
   const pin = document.getElementById('newProfilePin').value.trim();
