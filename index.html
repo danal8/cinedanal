@@ -1452,7 +1452,7 @@ async function openModal(tmdbId, englishTitle, options = {}){
         </div>
       </div>
       <div class="modal-body">
-        ${trailerUrl ? `<a href="${trailerUrl}" target="_blank" rel="noopener" class="trailer-link">▶ Trailer στο YouTube</a>` : `<a href="${youtubeSearchUrl}" target="_blank" rel="noopener" class="trailer-link">🔎 Αναζήτηση trailer στο YouTube</a>`}
+        <a href="${trailerUrl || youtubeSearchUrl}" target="_blank" rel="noopener" class="trailer-link" title="${trailerUrl ? 'Προβολή trailer στο YouTube' : 'Αναζήτηση trailer στο YouTube'}">▶ Trailer στο YouTube</a>
         ${hasNetflix ? `<a href="${netflixUrl}" target="_blank" rel="noopener" class="netflix-link">▶ Netflix</a>` : ''}
         <button class="trailer-link" style="background:var(--bg-raised);color:var(--text);border:1px solid var(--line);" id="modalBookmarkBtn"></button>
         <div class="modal-share-row">
