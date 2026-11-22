@@ -1376,16 +1376,37 @@ async function openModal(tmdbId, englishTitle, options = {}){
     const imdbId = details.external_ids && details.external_ids.imdb_id;
     const showGreekTitle = greekTitle && greekTitle !== title;
 
-    const videos = (details.videos && details.videos.results) || [];
+    const videos = Array.isArray(details.videos?.results) ? details.videos.results : [];
+    const isYouTubeVideo = v => v?.site === 'YouTube' && /^[A-Za-z0-9_-]{11}$/.test(v.key || '');
+    const findVideo = (items, type, officialOnly = false) =>
+      items.find(v => isYouTubeVideo(v) && v.type === type && (!officialOnly || v.official));
+    let englishVideos = [];
+    // TMDb video results are language-filtered; try English unless an official Greek trailer exists.
+    if(!findVideo(videos, 'Trailer', true)){
+      try{
+        const englishData = await tmdbFetch(`/${state.mediaType}/${tmdbId}/videos`, { language: 'en-US' });
+        englishVideos = Array.isArray(englishData?.results) ? englishData.results : [];
+      }catch(e){
+        console.warn('English trailer lookup failed:', e);
+      }
+    }
     const recs = filterLanguages((details.recommendations && details.recommendations.results) || []).slice(0, 6);
     const providersData = details['watch/providers'] || { results: {} };
     const grProviders = (providersData.results && providersData.results.GR) || null;
     const streamProviders = grProviders ? (grProviders.flatrate || grProviders.ads || []) : [];
     const providersLink = grProviders && grProviders.link ? grProviders.link : 'https://www.justwatch.com/gr';
-    const trailer = videos.find(v => v.site === 'YouTube' && v.type === 'Trailer')
-      || videos.find(v => v.site === 'YouTube' && v.type === 'Teaser')
-      || videos.find(v => v.site === 'YouTube');
+    const trailer = findVideo(videos, 'Trailer', true)
+      || findVideo(englishVideos, 'Trailer', true)
+      || findVideo(videos, 'Trailer')
+      || findVideo(englishVideos, 'Trailer')
+      || findVideo(videos, 'Teaser', true)
+      || findVideo(englishVideos, 'Teaser', true)
+      || findVideo(videos, 'Teaser')
+      || findVideo(englishVideos, 'Teaser')
+      || videos.find(isYouTubeVideo)
+      || englishVideos.find(isYouTubeVideo);
     const trailerUrl = trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : null;
+    const youtubeSearchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(`${title} ${year === '—' ? '' : year} official trailer`.trim())}`;
     const imdbUrl = imdbId ? `https://www.imdb.com/title/${imdbId}/` : null;
     const shareText = `${title} (${year})${imdbUrl ? ' — ' + imdbUrl : ''}`;
     const encodedShareText = encodeURIComponent(shareText);
@@ -1431,7 +1452,7 @@ async function openModal(tmdbId, englishTitle, options = {}){
         </div>
       </div>
       <div class="modal-body">
-        ${trailerUrl ? `<a href="${trailerUrl}" target="_blank" rel="noopener" class="trailer-link">▶ Trailer στο YouTube</a>` : ''}
+        ${trailerUrl ? `<a href="${trailerUrl}" target="_blank" rel="noopener" class="trailer-link">▶ Trailer στο YouTube</a>` : `<a href="${youtubeSearchUrl}" target="_blank" rel="noopener" class="trailer-link">🔎 Αναζήτηση trailer στο YouTube</a>`}
         ${hasNetflix ? `<a href="${netflixUrl}" target="_blank" rel="noopener" class="netflix-link">▶ Netflix</a>` : ''}
         <button class="trailer-link" style="background:var(--bg-raised);color:var(--text);border:1px solid var(--line);" id="modalBookmarkBtn"></button>
         <div class="modal-share-row">
